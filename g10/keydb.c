@@ -456,8 +456,8 @@ keydb_search_desc_dump (struct keydb_search_desc *desc)
   char b[MAX_FORMATTED_FINGERPRINT_LEN + 1];
   char fpr[2 * MAX_FINGERPRINT_LEN + 1];
 
-#if MAX_FINGERPRINT_LEN < 20
-#error MAX_FINGERPRINT_LEN shorter than GRIP and UBID length/
+#if MAX_FINGERPRINT_LEN < UBID_LEN || MAX_FINGERPRINT_LEN < KEYGRIP_LEN
+#error MAX_FINGERPRINT_LEN is shorter than KEYGRIP or UBID length.
 #endif
 
   switch (desc->mode)
@@ -499,10 +499,10 @@ keydb_search_desc_dump (struct keydb_search_desc *desc)
     case KEYDB_SEARCH_MODE_SUBJECT:
       return xasprintf ("SUBJECT: '%s'", desc->u.name);
     case KEYDB_SEARCH_MODE_KEYGRIP:
-      bin2hex (desc[0].u.grip, 20, fpr);
+      bin2hex (desc[0].u.grip, KEYGRIP_LEN, fpr);
       return xasprintf ("KEYGRIP: %s", fpr);
     case KEYDB_SEARCH_MODE_UBID:
-      bin2hex (desc[0].u.ubid, 20, fpr);
+      bin2hex (desc[0].u.ubid, UBID_LEN, fpr);
       return xasprintf ("UBID: %s", fpr);
     case KEYDB_SEARCH_MODE_FIRST:
       return xasprintf ("FIRST");
@@ -1359,48 +1359,6 @@ internal_keydb_get_keyblock (KEYDB_HANDLE hd, KBNODE *ret_kb)
 }
 
 
-/* Build a keyblock image from KEYBLOCK.  Returns 0 on success and
- * only then stores a new iobuf object at R_IOBUF.  */
-static gpg_error_t
-build_keyblock_image (kbnode_t keyblock, iobuf_t *r_iobuf)
-{
-  gpg_error_t err;
-  iobuf_t iobuf;
-  kbnode_t kbctx, node;
-
-  *r_iobuf = NULL;
-
-  iobuf = iobuf_temp ();
-  for (kbctx = NULL; (node = walk_kbnode (keyblock, &kbctx, 0));)
-    {
-      /* Make sure to use only packets valid on a keyblock.  */
-      switch (node->pkt->pkttype)
-        {
-        case PKT_PUBLIC_KEY:
-        case PKT_PUBLIC_SUBKEY:
-        case PKT_SIGNATURE:
-        case PKT_USER_ID:
-        case PKT_ATTRIBUTE:
-        case PKT_RING_TRUST:
-          break;
-        default:
-          continue;
-        }
-
-      err = build_packet_and_meta (iobuf, node->pkt);
-      if (err)
-        {
-          iobuf_close (iobuf);
-          return err;
-        }
-    }
-
-  keydb_stats.build_keyblocks++;
-  *r_iobuf = iobuf;
-  return 0;
-}
-
-
 /* Update the keyblock KB (i.e., extract the fingerprint and find the
  * corresponding keyblock in the keyring).
  * keydb_update_keyblock diverts to here in the non-keyboxd mode.
@@ -1473,6 +1431,7 @@ internal_keydb_update_keyblock (ctrl_t ctrl, KEYDB_HANDLE hd, kbnode_t kb)
         err = build_keyblock_image (kb, &iobuf);
         if (!err)
           {
+            keydb_stats.build_keyblocks++;
             err = keybox_update_keyblock (hd->active[hd->found].u.kb,
                                           iobuf_get_temp_buffer (iobuf),
                                           iobuf_get_temp_length (iobuf));
@@ -1543,6 +1502,7 @@ internal_keydb_insert_keyblock (KEYDB_HANDLE hd, kbnode_t kb)
         err = build_keyblock_image (kb, &iobuf);
         if (!err)
           {
+            keydb_stats.build_keyblocks++;
             err = keybox_insert_keyblock (hd->active[idx].u.kb,
                                           iobuf_get_temp_buffer (iobuf),
                                           iobuf_get_temp_length (iobuf));

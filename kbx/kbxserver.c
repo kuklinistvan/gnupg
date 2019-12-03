@@ -466,29 +466,38 @@ cmd_next (assuan_context_t ctx, char *line)
 
 
 static const char hlp_store[] =
-  "STORE [--update]\n"
+  "STORE [--update|--insert]\n"
   "\n"
   "Insert a key into the database.  Whether to insert or update\n"
   "the key is decided by looking at the primary key's fingerprint.\n"
-  "With option --update the key must already exist. The actual key\n"
-  "material is requested by this function using\n"
+  "With option --update the key must already exist.\n"
+  "With option --insert the key must not already exist.\n"
+  "The actual key material is requested by this function using\n"
   "  INQUIRE BLOB";
 static gpg_error_t
 cmd_store (assuan_context_t ctx, char *line)
 {
   ctrl_t ctrl = assuan_get_pointer (ctx);
-  int opt_update;
+  int opt_update, opt_insert;
+  enum kbxd_store_modes mode;
   gpg_error_t err;
   unsigned char *value = NULL;
   size_t valuelen;
 
   opt_update = has_option (line, "--update");
+  opt_insert = has_option (line, "--insert");
   line = skip_options (line);
   if (*line)
     {
       err = set_error (GPG_ERR_INV_ARG, "no args expected");
       goto leave;
     }
+  if (opt_update && !opt_insert)
+    mode = KBXD_STORE_UPDATE;
+  else if (!opt_update && opt_insert)
+    mode = KBXD_STORE_INSERT;
+  else
+    mode = KBXD_STORE_AUTO;
 
   /* Ask for the key material.  */
   err = assuan_inquire (ctx, "BLOB", &value, &valuelen, 0);
@@ -504,7 +513,7 @@ cmd_store (assuan_context_t ctx, char *line)
       goto leave;
     }
 
-  err = kbxd_store (ctrl, value, valuelen, opt_update);
+  err = kbxd_store (ctrl, value, valuelen, mode);
 
 
  leave:
@@ -512,6 +521,46 @@ cmd_store (assuan_context_t ctx, char *line)
   return leave_cmd (ctx, err);
 }
 
+
+static const char hlp_delete[] =
+  "DELETE <ubid> \n"
+  "\n"
+  "Delete a key into the database.  The UBID identifies the key.\n";
+static gpg_error_t
+cmd_delete (assuan_context_t ctx, char *line)
+{
+  ctrl_t ctrl = assuan_get_pointer (ctx);
+  gpg_error_t err;
+  int n;
+  unsigned char ubid[UBID_LEN];
+
+  line = skip_options (line);
+  if (!*line)
+    {
+      err = set_error (GPG_ERR_INV_ARG, "UBID missing");
+      goto leave;
+    }
+
+  /* Skip an optional UBID identifier character.  */
+  if (*line == '^' && line[1])
+    line++;
+  if ((n=hex2bin (line, ubid, UBID_LEN)) < 0)
+    {
+      err = set_error (GPG_ERR_INV_USER_ID, "invalid UBID");
+      goto leave;
+    }
+  if (line[n])
+    {
+      err = set_error (GPG_ERR_INV_ARG, "garbage after UBID");
+      goto leave;
+    }
+
+  err = kbxd_delete (ctrl, ubid);
+
+
+ leave:
+  return leave_cmd (ctx, err);
+}
 
 
 
@@ -634,6 +683,7 @@ register_commands (assuan_context_t ctx)
     { "SEARCH",     cmd_search,     hlp_search },
     { "NEXT",       cmd_next,       hlp_next   },
     { "STORE",      cmd_store,      hlp_store  },
+    { "DELETE",     cmd_delete,     hlp_delete  },
     { "GETINFO",    cmd_getinfo,    hlp_getinfo },
     { "OUTPUT",     NULL,           hlp_output },
     { "KILLKEYBOXD",cmd_killkeyboxd,hlp_killkeyboxd },
