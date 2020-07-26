@@ -21,7 +21,7 @@ EXTRA_DIST = ChangeLog-2011 scdaemon-w32info.rc
 
 libexec_PROGRAMS = scdaemon
 
-AM_CPPFLAGS = $(LIBUSB_CPPFLAGS)
+AM_CPPFLAGS = $(LIBUSB_CPPFLAGS) $(KC_EMULATOR_CPPFLAGS)
 
 include $(top_srcdir)/am/cmacros.am
 
@@ -30,7 +30,7 @@ resource_objs += scdaemon-w32info.o
 endif
 
 AM_CFLAGS =  $(LIBGCRYPT_CFLAGS) \
-	     $(KSBA_CFLAGS) $(LIBASSUAN_CFLAGS) $(NPTH_CFLAGS)
+	     $(KSBA_CFLAGS) $(LIBASSUAN_CFLAGS) $(NPTH_CFLAGS) $(KC_EMULATOR_CFLAGS)
 
 
 card_apps = app-openpgp.c app-nks.c app-dinsig.c app-p15.c app-geldkarte.c app-sc-hsm.c
@@ -47,5 +47,5 @@ scdaemon_SOURCES = \
 
 scdaemon_LDADD = $(libcommonpth) \
 	$(LIBGCRYPT_LIBS) $(KSBA_LIBS) $(LIBASSUAN_LIBS) $(NPTH_LIBS) \
-	$(LIBUSB_LIBS) $(GPG_ERROR_LIBS) \
+	$(LIBUSB_LIBS) $(GPG_ERROR_LIBS) $(KC_EMULATOR_LIBS) \
         $(LIBINTL) $(DL_LIBS) $(NETLIBS) $(LIBICONV) $(resource_objs)

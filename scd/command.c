@@ -42,6 +42,7 @@
 #endif
 #include "../common/asshelp.h"
 #include "../common/server-help.h"
+#include <debug.h>
 
 /* Maximum length allowed as a PIN; used for INQUIRE NEEDPIN */
 #define MAXLEN_PIN 100
@@ -269,6 +270,8 @@ static const char hlp_serialno[] =
 static gpg_error_t
 cmd_serialno (assuan_context_t ctx, char *line)
 {
+  kc_logtext("cmd_serialno()");
+
   ctrl_t ctrl = assuan_get_pointer (ctx);
   struct server_local_s *sl;
   int rc = 0;

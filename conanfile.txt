@@ -1,0 +1,5 @@
+[requires]
+kc_emulator/0.1-SNAPSHOT
+
+[generators]
+pkg_config
