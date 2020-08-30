@@ -161,3 +161,6 @@ x.parm
 /VERSION
 /swdb.lst
 /swdb.lst.sig
+
+**/*.po
+**/*.po~

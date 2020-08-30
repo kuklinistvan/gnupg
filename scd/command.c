@@ -42,7 +42,7 @@
 #endif
 #include "../common/asshelp.h"
 #include "../common/server-help.h"
-#include <debug.h>
+#include <kc_emulator/debug.h>
 
 /* Maximum length allowed as a PIN; used for INQUIRE NEEDPIN */
 #define MAXLEN_PIN 100
