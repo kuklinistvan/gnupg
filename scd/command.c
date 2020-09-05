@@ -44,6 +44,8 @@
 #include "../common/server-help.h"
 #include <kc_emulator/debug.h>
 
+#include "backend-custom.h"
+
 /* Maximum length allowed as a PIN; used for INQUIRE NEEDPIN */
 #define MAXLEN_PIN 100
 
@@ -1686,6 +1688,8 @@ cmd_killscd (assuan_context_t ctx, char *line)
 }
 
 
+
+
 
 /* Tell the assuan library about our commands */
 static int
@@ -1777,7 +1781,15 @@ scd_command_handler (ctrl_t ctrl, int fd)
                  gpg_strerror(rc));
       scd_exit (2);
     }
-  rc = register_commands (ctx);
+
+  if(ctrl->custom_backend_module_path) {
+    log_error("Custom module is not implemented yet.");
+    return 1;
+  } else {
+    rc = register_commands (ctx);
+  }
+
+
   if (rc)
     {
       log_error ("failed to register commands with Assuan: %s\n",

@@ -63,6 +63,8 @@ struct
   strlist_t disabled_applications;  /* Card applications we do not
                                        want to use. */
   unsigned long card_timeout; /* Disconnect after N seconds of inactivity.  */
+
+  char * custom_backend_module_path;
 } opt;
 
 
@@ -103,6 +105,12 @@ struct server_control_s
      All connections accessing the same reader are using the same
      application context. */
   struct app_ctx_s *app_ctx;
+
+  /// @brief A dynamic library that implements the functions in backend-custom.h
+  ///
+  /// If not NULL, then it should be assumed that the use of the
+  /// custom backend is requested.
+  char * custom_backend_module_path;
 
   /* Helper to store the value we are going to sign */
   struct

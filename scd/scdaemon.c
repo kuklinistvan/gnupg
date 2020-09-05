@@ -438,7 +438,6 @@ main (int argc, char **argv )
   int nodetach = 0;
   int csh_style = 0;
   char *logfile = NULL;
-  char *customBackend = NULL;
   int debug_wait = 0;
   int gpgconf_list = 0;
   const char *config_filename = NULL;
@@ -478,6 +477,7 @@ main (int argc, char **argv )
   /* Set default options. */
   opt.allow_admin = 1;
   opt.pcsc_driver = DEFAULT_PCSC_DRIVER;
+  opt.custom_backend_module_path = NULL;
 
   shell = getenv ("SHELL");
   if (shell && strlen (shell) >= 3 && !strcmp (shell+strlen (shell)-3, "csh") )
@@ -633,8 +633,8 @@ main (int argc, char **argv )
           break;
 
         case oCustomBackend:
-          customBackend = pargs.r.ret_str;
-          log_info("Loading custom smart card backend: %s", customBackend);
+          opt.custom_backend_module_path = pargs.r.ret_str;
+          log_info("Custom smart card backend requested: %s", pargs.r.ret_str);
           break;
 
         case oNoop: break;
@@ -975,7 +975,13 @@ main (int argc, char **argv )
 void
 scd_exit (int rc)
 {
+
+  // Maybe we should check the custom backend which is not
+  // necessarily APDU-specific?
+
   apdu_prepare_exit ();
+
+
 #if 0
 #warning no update_random_seed_file
   update_random_seed_file();
@@ -1000,6 +1006,7 @@ static void
 scd_init_default_ctrl (ctrl_t ctrl)
 {
   (void)ctrl;
+  ctrl->custom_backend_module_path = NULL;
 }
 
 static void
@@ -1213,6 +1220,8 @@ start_connection_thread (void *arg)
   if (opt.verbose)
     log_info (_("handler for fd %d started\n"),
               FD2INT(ctrl->thread_startup.fd));
+
+  ctrl->custom_backend_module_path = opt.custom_backend_module_path;
 
   /* If this is a pipe server, we request a shutdown if the command
      handler asked for it.  With the next ticker event and given that
