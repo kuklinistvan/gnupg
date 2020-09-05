@@ -38,6 +38,7 @@ card_apps = app-openpgp.c app-nks.c app-dinsig.c app-p15.c app-geldkarte.c app-s
 scdaemon_SOURCES = \
 	scdaemon.c scdaemon.h \
 	command.c \
+	custom_backend_loader.c custom_backend_loader.h \
 	atr.c atr.h \
 	apdu.c apdu.h \
 	ccid-driver.c ccid-driver.h \

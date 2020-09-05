@@ -48,7 +48,10 @@ void log_set_prefix (const char *text, unsigned int flags);
 const char *log_get_prefix (unsigned int *flags);
 int log_test_fd (int fd);
 int  log_get_fd(void);
+
+#ifdef GPGRT_ENABLE_ES_MACROS
 estream_t log_get_stream (void);
+#endif
 
 #ifdef GPGRT_HAVE_MACRO_FUNCTION
   void bug_at (const char *file, int line, const char *func)

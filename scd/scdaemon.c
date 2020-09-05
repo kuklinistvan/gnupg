@@ -107,8 +107,6 @@ enum cmd_and_opt_values
   oNoop
 };
 
-
-
 static ARGPARSE_OPTS opts[] = {
   ARGPARSE_c (aGPGConfList, "gpgconf-list", "@"),
   ARGPARSE_c (aGPGConfTest, "gpgconf-test", "@"),

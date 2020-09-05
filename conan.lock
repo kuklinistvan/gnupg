@@ -1,0 +1,20 @@
+{
+ "profile_host": "[settings]\narch=x86_64\narch_build=x86_64\nbuild_type=Release\ncompiler=gcc\ncompiler.libcxx=libstdc++11\ncompiler.version=10\nos=Linux\nos_build=Linux\n[options]\n[build_requires]\n[env]\n",
+ "graph_lock": {
+  "nodes": {
+   "0": {
+    "pref": null,
+    "options": "",
+    "requires": [
+     "1"
+    ],
+    "path": "/usr/local/src/gnupg-kc/conanfile.txt"
+   },
+   "1": {
+    "pref": "kc_emulator/0.1-SNAPSHOT#73864b0ecae5bbb9df755ddddd73ffde:73468d6cd433312abe58cd86e0da983f5d6f13ce#67f3c85d6e823572dd7aa410ee07ed25",
+    "options": ""
+   }
+  }
+ },
+ "version": "0.3"
+}

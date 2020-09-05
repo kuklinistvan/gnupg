@@ -44,7 +44,8 @@
 #include "../common/server-help.h"
 #include <kc_emulator/debug.h>
 
-#include "backend-custom.h"
+#include "command.h"
+#include "custom_backend_loader.h"
 
 /* Maximum length allowed as a PIN; used for INQUIRE NEEDPIN */
 #define MAXLEN_PIN 100
@@ -1687,46 +1688,86 @@ cmd_killscd (assuan_context_t ctx, char *line)
   return 0;
 }
 
+static void scd_preload_commands_from(const scdaemon_cmd_set * set);
+
+/// Warning! If you change this, change order in scd_load_commands_from too!
+static assuan_cmd_triplet cmd_table[] = {
+  { "SERIALNO",     NULL, hlp_serialno },
+  { "LEARN",        NULL,    hlp_learn },
+  { "READCERT",     NULL, hlp_readcert },
+  { "READKEY",      NULL,  hlp_readkey },
+  { "SETDATA",      NULL,  hlp_setdata },
+  { "PKSIGN",       NULL,   hlp_pksign },
+  { "PKAUTH",       NULL,   hlp_pkauth },
+  { "PKDECRYPT",    NULL, hlp_pkdecrypt },
+  { "INPUT",        NULL },
+  { "OUTPUT",       NULL },
+  { "GETATTR",      NULL,  hlp_getattr },
+  { "SETATTR",      NULL,  hlp_setattr },
+  { "WRITECERT",    NULL,hlp_writecert },
+  { "WRITEKEY",     NULL, hlp_writekey },
+  { "GENKEY",       NULL,   hlp_genkey },
+  { "RANDOM",       NULL,   hlp_random },
+  { "PASSWD",       NULL,   hlp_passwd },
+  { "CHECKPIN",     NULL, hlp_checkpin },
+  { "LOCK",         NULL,     hlp_lock },
+  { "UNLOCK",       NULL,   hlp_unlock },
+  { "GETINFO",      NULL,  hlp_getinfo },
+  { "RESTART",      NULL,  hlp_restart },
+  { "DISCONNECT",   NULL,hlp_disconnect },
+  { "APDU",         NULL,     hlp_apdu },
+  { "KILLSCD",      NULL,  hlp_killscd },
+  { NULL }
+};
+
+static scdaemon_cmd_set default_cmd_set = {
+    cmd_serialno,
+    cmd_learn,
+    cmd_readcert,
+    cmd_readkey,
+    cmd_setdata,
+    cmd_pksign,
+    cmd_pkauth,
+    cmd_pkdecrypt,
+    cmd_getattr,
+    cmd_setattr,
+    cmd_writecert,
+    cmd_writekey,
+    cmd_genkey,
+    cmd_random,
+    cmd_passwd,
+    cmd_checkpin,
+    cmd_lock,
+    cmd_unlock,
+    cmd_getinfo,
+    cmd_restart,
+    cmd_disconnect,
+    cmd_apdu,
+    cmd_killscd,
+};
 
 
-
+/// Registers the commands from table.
+/// @param table The last element should be { NULL } struct.
+static int
+register_commands_from_table(assuan_context_t ctx, assuan_cmd_triplet * table);
 
 /* Tell the assuan library about our commands */
 static int
 register_commands (assuan_context_t ctx)
 {
-  static struct {
-    const char *name;
-    assuan_handler_t handler;
-    const char * const help;
-  } table[] = {
-    { "SERIALNO",     cmd_serialno, hlp_serialno },
-    { "LEARN",        cmd_learn,    hlp_learn },
-    { "READCERT",     cmd_readcert, hlp_readcert },
-    { "READKEY",      cmd_readkey,  hlp_readkey },
-    { "SETDATA",      cmd_setdata,  hlp_setdata },
-    { "PKSIGN",       cmd_pksign,   hlp_pksign },
-    { "PKAUTH",       cmd_pkauth,   hlp_pkauth },
-    { "PKDECRYPT",    cmd_pkdecrypt,hlp_pkdecrypt },
-    { "INPUT",        NULL },
-    { "OUTPUT",       NULL },
-    { "GETATTR",      cmd_getattr,  hlp_getattr },
-    { "SETATTR",      cmd_setattr,  hlp_setattr },
-    { "WRITECERT",    cmd_writecert,hlp_writecert },
-    { "WRITEKEY",     cmd_writekey, hlp_writekey },
-    { "GENKEY",       cmd_genkey,   hlp_genkey },
-    { "RANDOM",       cmd_random,   hlp_random },
-    { "PASSWD",       cmd_passwd,   hlp_passwd },
-    { "CHECKPIN",     cmd_checkpin, hlp_checkpin },
-    { "LOCK",         cmd_lock,     hlp_lock },
-    { "UNLOCK",       cmd_unlock,   hlp_unlock },
-    { "GETINFO",      cmd_getinfo,  hlp_getinfo },
-    { "RESTART",      cmd_restart,  hlp_restart },
-    { "DISCONNECT",   cmd_disconnect,hlp_disconnect },
-    { "APDU",         cmd_apdu,     hlp_apdu },
-    { "KILLSCD",      cmd_killscd,  hlp_killscd },
-    { NULL }
-  };
+  scd_preload_commands_from(&default_cmd_set);
+  return register_commands_from_table(ctx, cmd_table);
+}
+
+static int
+register_preloaded_commands (assuan_context_t ctx, const scdaemon_cmd_set * set) {
+  scd_preload_commands_from(set);
+  return register_commands_from_table(ctx, cmd_table);
+}
+
+static int
+register_commands_from_table(assuan_context_t ctx, assuan_cmd_triplet * table) {
   int i, rc;
 
   for (i=0; table[i].name; i++)
@@ -1743,6 +1784,33 @@ register_commands (assuan_context_t ctx)
   return 0;
 }
 
+static void scd_preload_commands_from(const scdaemon_cmd_set * set) {
+  cmd_table[0].handler = set->cmd_serialno;
+  cmd_table[1].handler = set->cmd_learn;
+  cmd_table[2].handler = set->cmd_readcert;
+  cmd_table[3].handler = set->cmd_readkey;
+  cmd_table[4].handler = set->cmd_setdata;
+  cmd_table[5].handler = set->cmd_pksign;
+  cmd_table[6].handler = set->cmd_pkauth;
+  cmd_table[7].handler = set->cmd_pkdecrypt;
+  cmd_table[8].handler = NULL; // INPUT
+  cmd_table[9].handler = NULL; // OUTPUT
+  cmd_table[10].handler = set->cmd_getattr;
+  cmd_table[11].handler = set->cmd_setattr;
+  cmd_table[12].handler = set->cmd_writecer;
+  cmd_table[13].handler = set->cmd_writekey;
+  cmd_table[14].handler = set->cmd_genkey;
+  cmd_table[15].handler = set->cmd_random;
+  cmd_table[16].handler = set->cmd_passwd;
+  cmd_table[17].handler = set->cmd_checkpin;
+  cmd_table[18].handler = set->cmd_lock;
+  cmd_table[19].handler = set->cmd_unlock;
+  cmd_table[20].handler = set->cmd_getinfo;
+  cmd_table[21].handler = set->cmd_restart;
+  cmd_table[22].handler = set->cmd_disconnec;
+  cmd_table[23].handler = set->cmd_apdu;
+  cmd_table[24].handler = set->cmd_killscd;
+}
 
 /* Startup the server.  If FD is given as -1 this is simple pipe
    server, otherwise it is a regular server.  Returns true if there
@@ -1783,8 +1851,15 @@ scd_command_handler (ctrl_t ctrl, int fd)
     }
 
   if(ctrl->custom_backend_module_path) {
-    log_error("Custom module is not implemented yet.");
-    return 1;
+    log_info("Loading scdaemon command implementations from %s", ctrl->custom_backend_module_path);
+
+    scdaemon_cmd_set set;
+    rc = scd_load_custom_command_implementations(ctrl->custom_backend_module_path, &set);
+
+    if(!rc) {
+      rc = register_preloaded_commands(ctx, &set);
+    }
+
   } else {
     rc = register_commands (ctx);
   }
