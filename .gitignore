@@ -207,3 +207,6 @@ tools/gpg-wks-client
 tools/gpg-wks-server
 graph_info.json
 common/w32info-rc.h
+scd/sdfsd
+scd/test
+scd/a
