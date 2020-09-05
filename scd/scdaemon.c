@@ -102,6 +102,8 @@ enum cmd_and_opt_values
   oEnablePinpadVarlen,
   oListenBacklog,
 
+  oCustomBackend,
+
   oNoop
 };
 
@@ -161,6 +163,7 @@ static ARGPARSE_OPTS opts[] = {
                 N_("use variable length input for pinpad")),
   ARGPARSE_s_s (oHomedir,    "homedir",      "@"),
   ARGPARSE_s_i (oListenBacklog, "listen-backlog", "@"),
+  ARGPARSE_s_s (oCustomBackend,  "custom-backend", N_("|FILE|use custom smart card backend")),
 
   /* Stubs for options which are implemented by 2.3 or later.  */
   ARGPARSE_s_s (oNoop, "application-priority", "@"),
@@ -435,6 +438,7 @@ main (int argc, char **argv )
   int nodetach = 0;
   int csh_style = 0;
   char *logfile = NULL;
+  char *customBackend = NULL;
   int debug_wait = 0;
   int gpgconf_list = 0;
   const char *config_filename = NULL;
@@ -626,6 +630,11 @@ main (int argc, char **argv )
 
         case oListenBacklog:
           listen_backlog = pargs.r.ret_int;
+          break;
+
+        case oCustomBackend:
+          customBackend = pargs.r.ret_str;
+          log_info("Loading custom smart card backend: %s", customBackend);
           break;
 
         case oNoop: break;
