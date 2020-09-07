@@ -34,9 +34,9 @@ BUILT_SOURCES = audit-events.h status-codes.h
 
 MAINTAINERCLEANFILES = audit-events.h status-codes.h
 
-AM_CPPFLAGS =
+AM_CPPFLAGS = -fPIC
 
-AM_CFLAGS = $(LIBGCRYPT_CFLAGS) $(LIBASSUAN_CFLAGS) $(KSBA_CFLAGS)
+AM_CFLAGS = $(LIBGCRYPT_CFLAGS) $(LIBASSUAN_CFLAGS) $(KSBA_CFLAGS) -fPIC
 
 include $(top_srcdir)/am/cmacros.am
 
