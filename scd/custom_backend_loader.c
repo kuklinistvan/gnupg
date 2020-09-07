@@ -6,14 +6,24 @@
 static int load_function(void * handle, const char * sym, assuan_handler_t * target);
 
 int scd_load_custom_command_implementations(const char * dynamic_module_path, scdaemon_cmd_set * set) {
+    int errc = 0;
+
     void * handle = dlopen(dynamic_module_path, RTLD_NOW);
 
     if(!handle) {
-        log_error("Failed to open module at %s", dynamic_module_path);
-        return 1;
-    }
+        log_error("Failed to load module with RTLD_NOW! This is a HUGE"
+                  " problem and should not be left that way! It is probably "
+                  "caused by a linking deficiency in the backend module.");
+        log_error("I'm loading now the module with RTLD_LAZY to let you find"
+                  " what is missing in runtime.");
 
-    int errc = 0;
+        handle = dlopen(dynamic_module_path, RTLD_LAZY);
+
+        if(!handle) {
+            log_error("Failed to open module with RTLD_LAZY at %s", dynamic_module_path);
+            return 1;
+        }
+    }
 
     errc += load_function(handle,"custom_cmd_serialno", &(set->cmd_serialno));
     errc += load_function(handle,"custom_cmd_learn", &(set->cmd_learn));
