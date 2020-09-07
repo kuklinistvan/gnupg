@@ -12,8 +12,8 @@ int scd_load_custom_command_implementations(const char * dynamic_module_path, sc
 
     if(!handle) {
         log_error("Failed to load module with RTLD_NOW! This is a HUGE"
-                  " problem and should not be left that way! It is probably "
-                  "caused by a linking deficiency in the backend module.");
+                  " problem and should not be left that way! It is probably"
+                  " caused by a linking deficiency in the backend module.");
         log_error("I'm loading now the module with RTLD_LAZY to let you find"
                   " what is missing in runtime.");
 
@@ -45,12 +45,18 @@ int scd_load_custom_command_implementations(const char * dynamic_module_path, sc
     errc += load_function(handle,"custom_cmd_unlock", &(set->cmd_unlock));
     errc += load_function(handle,"custom_cmd_getinfo", &(set->cmd_getinfo));
     errc += load_function(handle,"custom_cmd_restart", &(set->cmd_restart));
-    errc += load_function(handle,"custom_cmd_disconnect", &(set->cmd_disconnec));
+    errc += load_function(handle,"custom_cmd_disconnect", &(set->cmd_disconnect));
     errc += load_function(handle,"custom_cmd_apdu", &(set->cmd_apdu));
     errc += load_function(handle,"custom_cmd_killscd", &(set->cmd_killscd));
 
     return errc;
 }
+
+// typedef gpg_error_t (*assuan_handler_t) (assuan_context_t, char *)
+
+// static gpg_error_t cmd_getinfo(assuan_context_t ctx, char * line) {
+
+// }
 
 static int load_function(void * handle, const char * sym, assuan_handler_t * target) {
     *target = dlsym(handle, sym);

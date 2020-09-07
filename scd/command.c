@@ -1807,7 +1807,7 @@ static void scd_preload_commands_from(const scdaemon_cmd_set * set) {
   cmd_table[19].handler = set->cmd_unlock;
   cmd_table[20].handler = set->cmd_getinfo;
   cmd_table[21].handler = set->cmd_restart;
-  cmd_table[22].handler = set->cmd_disconnec;
+  cmd_table[22].handler = set->cmd_disconnect;
   cmd_table[23].handler = set->cmd_apdu;
   cmd_table[24].handler = set->cmd_killscd;
 }

@@ -29,7 +29,7 @@ typedef struct {
     assuan_handler_t cmd_unlock;
     assuan_handler_t cmd_getinfo;
     assuan_handler_t cmd_restart;
-    assuan_handler_t cmd_disconnec;
+    assuan_handler_t cmd_disconnect;
     assuan_handler_t cmd_apdu;
     assuan_handler_t cmd_killscd;
 } scdaemon_cmd_set;
