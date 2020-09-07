@@ -33,3 +33,5 @@ typedef struct {
     assuan_handler_t cmd_apdu;
     assuan_handler_t cmd_killscd;
 } scdaemon_cmd_set;
+
+gpg_error_t scd_cmd_getinfo_generic (assuan_context_t ctx, char *line);

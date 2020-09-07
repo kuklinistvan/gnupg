@@ -1,9 +1,17 @@
 #include "custom_backend_loader.h"
 #include "../common/logging.h"
+// #include "scdaemon.h"
+#include "../config.h"
+#include "command.h"
 
 #include <dlfcn.h>
 
+static assuan_handler_t additional_cmd_getinfo;
+
+
 static int load_function(void * handle, const char * sym, assuan_handler_t * target);
+
+static gpg_error_t cmd_getinfo(assuan_context_t ctx, char * line);
 
 int scd_load_custom_command_implementations(const char * dynamic_module_path, scdaemon_cmd_set * set) {
     int errc = 0;
@@ -43,7 +51,10 @@ int scd_load_custom_command_implementations(const char * dynamic_module_path, sc
     errc += load_function(handle,"custom_cmd_checkpin", &(set->cmd_checkpin));
     errc += load_function(handle,"custom_cmd_lock", &(set->cmd_lock));
     errc += load_function(handle,"custom_cmd_unlock", &(set->cmd_unlock));
-    errc += load_function(handle,"custom_cmd_getinfo", &(set->cmd_getinfo));
+
+    errc += load_function(handle,"additional_cmd_getinfo", &additional_cmd_getinfo);
+    set->cmd_getinfo = &cmd_getinfo;
+
     errc += load_function(handle,"custom_cmd_restart", &(set->cmd_restart));
     errc += load_function(handle,"custom_cmd_disconnect", &(set->cmd_disconnect));
     errc += load_function(handle,"custom_cmd_apdu", &(set->cmd_apdu));
@@ -52,11 +63,17 @@ int scd_load_custom_command_implementations(const char * dynamic_module_path, sc
     return errc;
 }
 
-// typedef gpg_error_t (*assuan_handler_t) (assuan_context_t, char *)
+static gpg_error_t cmd_getinfo(assuan_context_t ctx, char * line) {
+    int rc = 0;
 
-// static gpg_error_t cmd_getinfo(assuan_context_t ctx, char * line) {
+    rc = additional_cmd_getinfo(ctx, line);
 
-// }
+    if(rc) {
+        rc = scd_cmd_getinfo_generic(ctx, line);
+    }
+
+    return rc;
+}
 
 static int load_function(void * handle, const char * sym, assuan_handler_t * target) {
     *target = dlsym(handle, sym);

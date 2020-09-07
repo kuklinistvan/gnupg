@@ -273,13 +273,13 @@ static const char hlp_serialno[] =
 static gpg_error_t
 cmd_serialno (assuan_context_t ctx, char *line)
 {
-  kc_logtext("cmd_serialno()");
-
   ctrl_t ctrl = assuan_get_pointer (ctx);
   struct server_local_s *sl;
   int rc = 0;
   char *serial;
   const char *demand;
+
+  kc_logtext("cmd_serialno()");
 
   if ( IS_LOCKED (ctrl) )
     return gpg_error (GPG_ERR_LOCKED);
@@ -1417,6 +1417,49 @@ cmd_getinfo (assuan_context_t ctx, char *line)
 {
   int rc = 0;
 
+  if (!strcmp (line, "status"))
+  {
+    ctrl_t ctrl = assuan_get_pointer (ctx);
+    char flag;
+
+    if (open_card (ctrl))
+      flag = 'r';
+    else
+      flag = 'u';
+
+    rc = assuan_send_data (ctx, &flag, 1);
+  }
+  else if (!strcmp (line, "reader_list"))
+  {
+#ifdef HAVE_LIBUSB
+    char *s = ccid_get_reader_list ();
+#else
+    char *s = NULL;
+#endif
+
+    if (s)
+      rc = assuan_send_data (ctx, s, strlen (s));
+    else
+      rc = gpg_error (GPG_ERR_NO_DATA);
+    xfree (s);
+  }
+  else if (!strcmp (line, "card_list"))
+    {
+      ctrl_t ctrl = assuan_get_pointer (ctx);
+
+      app_send_card_list (ctrl);
+  }
+  else {
+    rc = scd_cmd_getinfo_generic(ctx, line);
+  }
+
+  return rc;
+}
+
+
+gpg_error_t scd_cmd_getinfo_generic (assuan_context_t ctx, char *line) {
+  int rc = 0;
+
   if (!strcmp (line, "version"))
     {
       const char *s = VERSION;
@@ -1445,32 +1488,7 @@ cmd_getinfo (assuan_context_t ctx, char *line)
       snprintf (numbuf, sizeof numbuf, "%d", get_active_connection_count ());
       rc = assuan_send_data (ctx, numbuf, strlen (numbuf));
     }
-  else if (!strcmp (line, "status"))
-    {
-      ctrl_t ctrl = assuan_get_pointer (ctx);
-      char flag;
 
-      if (open_card (ctrl))
-        flag = 'r';
-      else
-        flag = 'u';
-
-      rc = assuan_send_data (ctx, &flag, 1);
-    }
-  else if (!strcmp (line, "reader_list"))
-    {
-#ifdef HAVE_LIBUSB
-      char *s = ccid_get_reader_list ();
-#else
-      char *s = NULL;
-#endif
-
-      if (s)
-        rc = assuan_send_data (ctx, s, strlen (s));
-      else
-        rc = gpg_error (GPG_ERR_NO_DATA);
-      xfree (s);
-    }
   else if (!strcmp (line, "deny_admin"))
     rc = opt.allow_admin? gpg_error (GPG_ERR_GENERAL) : 0;
   else if (!strcmp (line, "app_list"))
@@ -1481,12 +1499,6 @@ cmd_getinfo (assuan_context_t ctx, char *line)
       else
         rc = 0;
       xfree (s);
-    }
-  else if (!strcmp (line, "card_list"))
-    {
-      ctrl_t ctrl = assuan_get_pointer (ctx);
-
-      app_send_card_list (ctrl);
     }
   else
     rc = set_error (GPG_ERR_ASS_PARAMETER, "unknown value for WHAT");
@@ -1821,6 +1833,7 @@ scd_command_handler (ctrl_t ctrl, int fd)
   int rc;
   assuan_context_t ctx = NULL;
   int stopme;
+  scdaemon_cmd_set custom_impl_cmd_set;
 
   rc = assuan_new (&ctx);
   if (rc)
@@ -1853,11 +1866,10 @@ scd_command_handler (ctrl_t ctrl, int fd)
   if(ctrl->custom_backend_module_path) {
     log_info("Loading scdaemon command implementations from %s", ctrl->custom_backend_module_path);
 
-    scdaemon_cmd_set set;
-    rc = scd_load_custom_command_implementations(ctrl->custom_backend_module_path, &set);
+    rc = scd_load_custom_command_implementations(ctrl->custom_backend_module_path, &custom_impl_cmd_set);
 
     if(!rc) {
-      rc = register_preloaded_commands(ctx, &set);
+      rc = register_preloaded_commands(ctx, &custom_impl_cmd_set);
     }
 
   } else {
