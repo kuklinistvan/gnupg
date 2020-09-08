@@ -7,11 +7,13 @@
 #include <dlfcn.h>
 
 static assuan_handler_t additional_cmd_getinfo;
+static assuan_handler_t additional_cmd_restart;
 
 
 static int load_function(void * handle, const char * sym, assuan_handler_t * target);
 
 static gpg_error_t cmd_getinfo(assuan_context_t ctx, char * line);
+static gpg_error_t cmd_restart(assuan_context_t ctx, char * line);
 
 int scd_load_custom_command_implementations(const char * dynamic_module_path, scdaemon_cmd_set * set) {
     int errc = 0;
@@ -49,16 +51,14 @@ int scd_load_custom_command_implementations(const char * dynamic_module_path, sc
     errc += load_function(handle,"custom_cmd_random", &(set->cmd_random));
     errc += load_function(handle,"custom_cmd_passwd", &(set->cmd_passwd));
     errc += load_function(handle,"custom_cmd_checkpin", &(set->cmd_checkpin));
-    errc += load_function(handle,"custom_cmd_lock", &(set->cmd_lock));
-    errc += load_function(handle,"custom_cmd_unlock", &(set->cmd_unlock));
-
     errc += load_function(handle,"additional_cmd_getinfo", &additional_cmd_getinfo);
     set->cmd_getinfo = &cmd_getinfo;
 
-    errc += load_function(handle,"custom_cmd_restart", &(set->cmd_restart));
+    errc += load_function(handle, "additional_cmd_restart", &additional_cmd_restart);
+    set->cmd_restart = &cmd_restart;
+
     errc += load_function(handle,"custom_cmd_disconnect", &(set->cmd_disconnect));
     errc += load_function(handle,"custom_cmd_apdu", &(set->cmd_apdu));
-    errc += load_function(handle,"custom_cmd_killscd", &(set->cmd_killscd));
 
     return errc;
 }
@@ -74,6 +74,19 @@ static gpg_error_t cmd_getinfo(assuan_context_t ctx, char * line) {
 
     return rc;
 }
+
+static gpg_error_t cmd_restart(assuan_context_t ctx, char * line) {
+    int rc = 0;
+
+    rc = additional_cmd_restart(ctx, line);
+
+    if(!rc) {
+        return scd_cmd_restart_generic(ctx, line);
+    } else {
+        return rc;
+    }
+}
+
 
 static int load_function(void * handle, const char * sym, assuan_handler_t * target) {
     *target = dlsym(handle, sym);

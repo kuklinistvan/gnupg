@@ -1525,15 +1525,28 @@ cmd_restart (assuan_context_t ctx, char *line)
   (void)line;
 
   if (app)
-    {
-      ctrl->app_ctx = NULL;
-      release_application (app, 0);
-    }
+  {
+    ctrl->app_ctx = NULL;
+    release_application (app, 0);
+  }
+
+  scd_cmd_restart_generic(ctx, line);
+
+  return 0;
+}
+
+gpg_error_t scd_cmd_restart_generic(assuan_context_t ctx, char * line) {
+
+  ctrl_t ctrl = assuan_get_pointer (ctx);
+
+  (void) line; //  unused warning supress
+
   if (locked_session && ctrl->server_local == locked_session)
-    {
-      locked_session = NULL;
-      log_info ("implicitly unlocking due to RESTART\n");
-    }
+  {
+    locked_session = NULL;
+    log_info ("implicitly unlocking due to RESTART\n");
+  }
+
   return 0;
 }
 
@@ -1693,7 +1706,7 @@ cmd_killscd (assuan_context_t ctx, char *line)
 {
   ctrl_t ctrl = assuan_get_pointer (ctx);
 
-  (void)line;
+  (void)line; // to supress the unused warning
 
   ctrl->server_local->stopme = 1;
   assuan_set_flag (ctx, ASSUAN_FORCE_CLOSE, 1);
@@ -1774,7 +1787,12 @@ register_commands (assuan_context_t ctx)
 
 static int
 register_preloaded_commands (assuan_context_t ctx, const scdaemon_cmd_set * set) {
-  scd_preload_commands_from(set);
+  scdaemon_cmd_set patched = *set;
+  patched.cmd_killscd = default_cmd_set.cmd_killscd;
+  patched.cmd_lock = default_cmd_set.cmd_lock;
+  patched.cmd_unlock = default_cmd_set.cmd_unlock;
+
+  scd_preload_commands_from(&patched);
   return register_commands_from_table(ctx, cmd_table);
 }
 

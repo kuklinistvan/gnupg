@@ -35,3 +35,4 @@ typedef struct {
 } scdaemon_cmd_set;
 
 gpg_error_t scd_cmd_getinfo_generic (assuan_context_t ctx, char *line);
+gpg_error_t scd_cmd_restart_generic (assuan_context_t ctx, char *line);
