@@ -15,6 +15,8 @@ static int load_function(void * handle, const char * sym, assuan_handler_t * tar
 static gpg_error_t cmd_getinfo(assuan_context_t ctx, char * line);
 static gpg_error_t cmd_restart(assuan_context_t ctx, char * line);
 
+static int additional_template(assuan_context_t ctx, char * line, assuan_handler_t additional, assuan_handler_t original, const char * handler_name);
+
 int scd_load_custom_command_implementations(const char * dynamic_module_path, scdaemon_cmd_set * set) {
     int errc = 0;
 
@@ -64,29 +66,24 @@ int scd_load_custom_command_implementations(const char * dynamic_module_path, sc
 }
 
 static gpg_error_t cmd_getinfo(assuan_context_t ctx, char * line) {
-    int rc = 0;
+    return additional_template(ctx, line, additional_cmd_getinfo, scd_cmd_getinfo_generic, "cmd_getinfo");
+}
 
-    rc = additional_cmd_getinfo(ctx, line);
+static gpg_error_t cmd_restart(assuan_context_t ctx, char * line) {
+    return additional_template(ctx, line, additional_cmd_restart, scd_cmd_restart_generic, "cmd_restart");
+}
+
+static int additional_template(assuan_context_t ctx, char * line, assuan_handler_t additional, assuan_handler_t original, const char * handler_name) {
+    int rc = 0;
+    rc = additional(ctx, line);
 
     if(rc) {
-        rc = scd_cmd_getinfo_generic(ctx, line);
+        log_debug("Handler / %s: running generic part", handler_name);
+        rc = original(ctx, line);
     }
 
     return rc;
 }
-
-static gpg_error_t cmd_restart(assuan_context_t ctx, char * line) {
-    int rc = 0;
-
-    rc = additional_cmd_restart(ctx, line);
-
-    if(!rc) {
-        return scd_cmd_restart_generic(ctx, line);
-    } else {
-        return rc;
-    }
-}
-
 
 static int load_function(void * handle, const char * sym, assuan_handler_t * target) {
     *target = dlsym(handle, sym);

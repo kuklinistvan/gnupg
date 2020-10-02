@@ -1460,6 +1460,8 @@ cmd_getinfo (assuan_context_t ctx, char *line)
 gpg_error_t scd_cmd_getinfo_generic (assuan_context_t ctx, char *line) {
   int rc = 0;
 
+  log_info("scd_cmd_getinfo_generic");
+
   if (!strcmp (line, "version"))
     {
       const char *s = VERSION;
@@ -1501,7 +1503,10 @@ gpg_error_t scd_cmd_getinfo_generic (assuan_context_t ctx, char *line) {
       xfree (s);
     }
   else
-    rc = set_error (GPG_ERR_ASS_PARAMETER, "unknown value for WHAT");
+    {
+      log_error("Invalid argument: %s", line);
+      rc = set_error (GPG_ERR_ASS_PARAMETER, "unknown value for WHAT");
+    }
   return rc;
 }
 
