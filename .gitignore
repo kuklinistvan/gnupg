@@ -166,7 +166,7 @@ x.parm
 **/*.po~
 po/*.gmo
 settings.json
-kc_emulator.pc
+*.pc
 conanbuildinfo.txt
 conaninfo.txt
 **/*~

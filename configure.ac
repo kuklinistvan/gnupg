@@ -133,7 +133,7 @@ GNUPG_BUILD_PROGRAM(gpgtar, yes)
 # later for platforms where it can't be build.
 GNUPG_BUILD_PROGRAM(wks-tools, yes)
 
-PKG_CHECK_MODULES([KC_EMULATOR], [kc_emulator])
+PKG_CHECK_MODULES([KC_COMMON], [kc-common])
 
 AC_SUBST(PACKAGE)
 AC_SUBST(PACKAGE_GT)

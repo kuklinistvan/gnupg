@@ -42,7 +42,6 @@
 #endif
 #include "../common/asshelp.h"
 #include "../common/server-help.h"
-#include <kc_emulator/debug.h>
 
 #include "command.h"
 #include "custom_backend_loader.h"
@@ -278,8 +277,6 @@ cmd_serialno (assuan_context_t ctx, char *line)
   int rc = 0;
   char *serial;
   const char *demand;
-
-  kc_logtext("cmd_serialno()");
 
   if ( IS_LOCKED (ctrl) )
     return gpg_error (GPG_ERR_LOCKED);
