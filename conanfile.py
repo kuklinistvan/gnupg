@@ -9,7 +9,7 @@ import os
 class ConanfileImpl(AutotoolsTemplate):
     name = "gnupg-kc"
     version = "2.2.20"
-    requires = "kc-common/0.1-SNAPSHOT", "libgpg-error/1.39", "libgcrypt/1.8.6"
+    requires = "kc-common/0.1-SNAPSHOT", "libgpg-error/1.39", "libgcrypt/1.8.6", "libassuan/2.5.3"
     exports_sources = "*"
         # "*.ac", "*.am", "*.awk", "*.m4", "*.in", "*.h", "*.c", "*.sh", "*.texi", "*.pem", "build-aux/*", "*.template", "*.po", \
         # "NEWS", "INSTALL", "README", "AUTHORS", "ChangeLog", "COPYING", "ABOUT-NLS", \
@@ -27,7 +27,7 @@ class ConanfileImpl(AutotoolsTemplate):
 
     def package(self):
         shell(['./autogen.sh'])
-        with build_env_vars_set(self, append_libdirs_to_ld_library_path = True):
+        with build_env_vars_set(self, append_libdirs_to_rpath = True):
             autotools = AutoToolsBuildEnvironment(self)
             autotools.configure(args=['--enable-maintainer-mode'])
             autotools.make()

@@ -7,7 +7,8 @@
     "requires": [
      "1",
      "3",
-     "2"
+     "2",
+     "4"
     ],
     "path": "conanfile.py",
     "context": "host"
@@ -34,6 +35,13 @@
    },
    "3": {
     "ref": "libgpg-error/1.39",
+    "options": "",
+    "package_id": "73468d6cd433312abe58cd86e0da983f5d6f13ce",
+    "prev": "0",
+    "context": "host"
+   },
+   "4": {
+    "ref": "libassuan/2.5.3",
     "options": "",
     "package_id": "73468d6cd433312abe58cd86e0da983f5d6f13ce",
     "prev": "0",
