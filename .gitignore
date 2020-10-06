@@ -210,3 +210,5 @@ common/w32info-rc.h
 scd/sdfsd
 scd/test
 scd/a
+
+package

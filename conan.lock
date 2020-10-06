@@ -16,10 +16,12 @@
    "1": {
     "ref": "kc-common/0.1-SNAPSHOT",
     "options": "",
-    "package_id": "444010977e36dd492b68aaca3279b586efc5685f",
+    "package_id": "4dd95a756326a3d755be14efd00148605e1f6c11",
     "prev": "0",
     "requires": [
-     "2"
+     "2",
+     "4",
+     "3"
     ],
     "context": "host"
    },

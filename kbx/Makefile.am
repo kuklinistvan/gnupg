@@ -59,9 +59,9 @@ libkeybox509_a_CFLAGS = $(AM_CFLAGS) -DKEYBOX_WITH_X509=1
 # to do it this way.
 kbxutil_SOURCES = kbxutil.c $(common_sources)
 kbxutil_CFLAGS = $(AM_CFLAGS) -DKEYBOX_WITH_X509=1
-kbxutil_LDADD   = ../common/libcommon.a \
+kbxutil_LDADD   = $(GPG_COMMON_LIBS) \
                   $(KSBA_LIBS) $(LIBGCRYPT_LIBS) $(extra_libs) \
                   $(GPG_ERROR_LIBS) $(LIBINTL) $(LIBICONV) $(W32SOCKLIBS) \
 		  $(NETLIBS)
 
-$(PROGRAMS) : ../common/libcommon.a
+$(PROGRAMS) : $(GPG_COMMON_LIBS)

@@ -1550,6 +1550,21 @@ if test "$use_bzip2" = yes ; then
       fi
       ],withval="")
 
+# https://stackoverflow.com/a/54226661/4770338
+# Disgusting hack for determining the path of the top directory.
+ac_abs_confdir=`(
+    cd "$srcdir" && test -r "./$ac_unique_file" || as_fn_error $? "$ac_msg"
+    pwd)`
+
+AC_ARG_WITH(
+  libcommon,
+  AC_HELP_STRING([--with-libcommon=path/to/libcommon.a],[Use precompiled libcommon.a]),
+  GPG_COMMON_LIBS="$libcommon",
+  GPG_COMMON_LIBS="$ac_abs_confdir/common/libcommon.a"
+)
+
+AC_SUBST(GPG_COMMON_LIBS)
+
   # Checking alongside stdio.h as an early version of bzip2 (1.0)
   # required stdio.h to be included before bzlib.h, and Solaris 9 is
   # woefully out of date.
@@ -2016,13 +2031,20 @@ if test "$die" = "yes"; then
 ***]])
 fi
 
+if $GPG_COMMON_LIBS; then
+  COMMON_CONFIG_FILES = ""
+  COMMON_SUBDIR = ""
+else
+  COMMON_CONFIG_FILES = "common/Makefile common/w32info-rc.h"
+  COMMON_SUBDIR = "common"
+fi
 
+AC_SUBST(COMMON_SUBDIR)
 
 AC_CONFIG_FILES([ m4/Makefile
 Makefile
 po/Makefile.in
-common/Makefile
-common/w32info-rc.h
+$COMMON_CONFIG_FILES
 kbx/Makefile
 g10/Makefile
 sm/Makefile

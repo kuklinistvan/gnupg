@@ -1,6 +1,5 @@
 #include "custom_backend_loader.h"
 #include "../common/logging.h"
-// #include "scdaemon.h"
 #include "../config.h"
 #include "command.h"
 
