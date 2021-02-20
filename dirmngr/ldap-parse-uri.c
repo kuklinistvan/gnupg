@@ -54,7 +54,7 @@ ldap_uri_p (const char *url)
 	      && (url[3] == 'p' || url[3] == 'P')
 	      && (url[4] == ':'
 		  || ((url[4] == 's' || url[4] == 'S'
-		       || url[4] == 'i' || url[4] == 'i')
+		       || url[4] == 'i' || url[4] == 'I')
 		      && url[5] == ':'))))
 	return 1;
       return 0;
@@ -176,8 +176,20 @@ ldap_parse_uri (parsed_uri_t *purip, const char *uri)
       puri->query->valuelen = strlen (password) + 1;
     }
 
-  puri->use_tls = strcmp (puri->scheme, "ldaps") == 0;
+  puri->use_tls = !strcmp (puri->scheme, "ldaps");
   puri->port = lud->lud_port;
+
+  /* On Windows detect whether this is ldap:// or ldaps:// to indicate
+   * that authentication via AD and the current user is requested.  */
+  puri->ad_current = 0;
+#ifdef HAVE_W32_SYSTEM
+  if ((!puri->host || !*puri->host)
+      && (!puri->path || !*puri->path)
+      && (!puri->auth || !*puri->auth)
+      && !password
+      )
+    puri->ad_current = 1;
+#endif
 
  out:
   if (lud)

@@ -42,7 +42,7 @@
 #include "gpgtar.h"
 
 #ifndef HAVE_LSTAT
-#define lstat(a,b) stat ((a), (b))
+#define lstat(a,b) gnupg_stat ((a), (b))
 #endif
 
 
@@ -55,6 +55,38 @@ struct scanctrl_s
   tar_header_t *flist_tail;
   int nestlevel;
 };
+
+
+
+/* On Windows convert name to UTF8 and return it; caller must release
+ * the result.  On Unix or if ALREADY_UTF8 is set, this function is a
+ * mere xtrystrcopy.  On failure NULL is returned and ERRNO set. */
+static char *
+name_to_utf8 (const char *name, int already_utf8)
+{
+#ifdef HAVE_W32_SYSTEM
+  wchar_t *wstring;
+  char *result;
+
+  if (already_utf8)
+    result = xtrystrdup (name);
+  else
+    {
+      wstring = native_to_wchar (name);
+      if (!wstring)
+        return NULL;
+      result = wchar_to_utf8 (wstring);
+      xfree (wstring);
+    }
+  return result;
+
+#else /*!HAVE_W32_SYSTEM */
+
+  (void)already_utf8;
+  return xtrystrdup (name);
+
+#endif /*!HAVE_W32_SYSTEM */
+}
 
 
 
@@ -73,7 +105,7 @@ fillup_entry_w32 (tar_header_t hdr)
   for (p=hdr->name; *p; p++)
     if (*p == '/')
       *p = '\\';
-  wfname = native_to_wchar (hdr->name);
+  wfname = utf8_to_wchar (hdr->name);
   for (p=hdr->name; *p; p++)
     if (*p == '\\')
       *p = '/';
@@ -213,7 +245,7 @@ fillup_entry_posix (tar_header_t hdr)
 #endif /*!HAVE_W32_SYSTEM*/
 
 
-/* Add a new entry.  The name of a director entry is ENTRYNAME; if
+/* Add a new entry.  The name of a directory entry is ENTRYNAME; if
    that is NULL, DNAME is the name of the directory itself.  Under
    Windows ENTRYNAME shall have backslashes replaced by standard
    slashes.  */
@@ -225,7 +257,7 @@ add_entry (const char *dname, const char *entryname, scanctrl_t scanctrl)
   char *p;
   size_t dnamelen = strlen (dname);
 
-  assert (dnamelen);
+  log_assert (dnamelen);
 
   hdr = xtrycalloc (1, sizeof *hdr + dnamelen + 1
                     + (entryname? strlen (entryname) : 0) + 1);
@@ -269,6 +301,8 @@ scan_directory (const char *dname, scanctrl_t scanctrl)
   gpg_error_t err = 0;
 
 #ifdef HAVE_W32_SYSTEM
+  /* Note that we introduced gnupg_opendir only after we had deployed
+   * this code and thus we don't change it for now.  */
   WIN32_FIND_DATAW fi;
   HANDLE hd = INVALID_HANDLE_VALUE;
   char *p;
@@ -300,7 +334,7 @@ scan_directory (const char *dname, scanctrl_t scanctrl)
     for (p=fname; *p; p++)
       if (*p == '/')
         *p = '\\';
-    wfname = native_to_wchar (fname);
+    wfname = utf8_to_wchar (fname);
     xfree (fname);
     if (!wfname)
       {
@@ -323,7 +357,7 @@ scan_directory (const char *dname, scanctrl_t scanctrl)
 
   do
     {
-      char *fname = wchar_to_native (fi.cFileName);
+      char *fname = wchar_to_utf8 (fi.cFileName);
       if (!fname)
         {
           err = gpg_error_from_syserror ();
@@ -744,23 +778,53 @@ write_eof_mark (estream_t stream)
 
 /* Create a new tarball using the names in the array INPATTERN.  If
    INPATTERN is NULL take the pattern as null terminated strings from
-   stdin.  */
+   stdin or from the file specified by FILES_FROM.  If NULL_NAMES is
+   set the filenames in such a file are delimited by a binary Nul and
+   not by a LF.  */
 gpg_error_t
-gpgtar_create (char **inpattern, int encrypt, int sign)
+gpgtar_create (char **inpattern, const char *files_from, int null_names,
+               int encrypt, int sign)
 {
   gpg_error_t err = 0;
   struct scanctrl_s scanctrl_buffer;
   scanctrl_t scanctrl = &scanctrl_buffer;
   tar_header_t hdr, *start_tail;
+  estream_t files_from_stream = NULL;
   estream_t outstream = NULL;
   estream_t cipher_stream = NULL;
   int eof_seen = 0;
 
-  if (!inpattern)
-    es_set_binary (es_stdin);
-
   memset (scanctrl, 0, sizeof *scanctrl);
   scanctrl->flist_tail = &scanctrl->flist;
+
+  /* { unsigned int cpno, cpno2, cpno3; */
+
+  /*   cpno = GetConsoleOutputCP (); */
+  /*   cpno2 = GetACP (); */
+  /*   cpno3 = GetOEMCP (); */
+  /*   log_debug ("Codepages: Console: %u  ANSI: %u  OEM: %u\n", */
+  /*              cpno, cpno2, cpno3); */
+  /* } */
+
+
+  if (!inpattern)
+    {
+      if (!files_from || !strcmp (files_from, "-"))
+        {
+          files_from = "-";
+          files_from_stream = es_stdin;
+          if (null_names)
+            es_set_binary (es_stdin);
+        }
+      else if (!(files_from_stream=es_fopen (files_from, null_names? "rb":"r")))
+        {
+          err = gpg_error_from_syserror ();
+          log_error ("error opening '%s': %s\n",
+                     files_from, gpg_strerror (err));
+          return err;
+        }
+    }
+
 
   if (opt.directory && gnupg_chdir (opt.directory))
     {
@@ -786,9 +850,9 @@ gpgtar_create (char **inpattern, int encrypt, int sign)
           if (!*pattern)
             continue;
 
-          pat = xtrystrdup (pattern);
+          pat = name_to_utf8 (pattern, 0);
         }
-      else /* Read null delimited pattern from stdin.  */
+      else /* Read Nul or LF delimited pattern from files_from_stream.  */
         {
           int c;
           char namebuf[4096];
@@ -796,17 +860,16 @@ gpgtar_create (char **inpattern, int encrypt, int sign)
 
           for (;;)
             {
-              if ((c = es_getc (es_stdin)) == EOF)
+              if ((c = es_getc (files_from_stream)) == EOF)
                 {
-                  if (es_ferror (es_stdin))
+                  if (es_ferror (files_from_stream))
                     {
                       err = gpg_error_from_syserror ();
                       log_error ("error reading '%s': %s\n",
-                                 "[stdin]", strerror (errno));
+                                 files_from, gpg_strerror (err));
                       goto leave;
                     }
-                  /* Note: The Nul is a delimiter and not a terminator.  */
-                  c = 0;
+                  c = null_names ? 0 : '\n';
                   eof_seen = 1;
                 }
               if (n >= sizeof namebuf - 1)
@@ -815,22 +878,45 @@ gpgtar_create (char **inpattern, int encrypt, int sign)
                     {
                       skip_this = 1;
                       log_error ("error reading '%s': %s\n",
-                                 "[stdin]", "filename too long");
+                                 files_from, "filename too long");
                     }
                 }
               else
                 namebuf[n++] = c;
-              if (!c)
+
+              if (null_names)
                 {
-                  namebuf[n] = 0;
-                  break;
+                  if (!c)
+                    {
+                      namebuf[n] = 0;
+                      break;
+                    }
+                }
+              else /* Shall be LF delimited.  */
+                {
+                  if (!c)
+                    {
+                      if (!skip_this)
+                        {
+                          skip_this = 1;
+                          log_error ("error reading '%s': %s\n",
+                                     files_from, "filename with embedded Nul");
+                        }
+                    }
+                  else if ( c == '\n' )
+                    {
+                      namebuf[n] = 0;
+                      ascii_trim_spaces (namebuf);
+                      n = strlen (namebuf);
+                      break;
+                    }
                 }
             }
 
           if (skip_this || n < 2)
             continue;
 
-          pat = xtrystrdup (namebuf);
+          pat = name_to_utf8 (namebuf, opt.utf8strings);
         }
 
       if (!pat)
@@ -855,6 +941,9 @@ gpgtar_create (char **inpattern, int encrypt, int sign)
 
       xfree (pat);
     }
+
+  if (files_from_stream && files_from_stream != es_stdin)
+    es_fclose (files_from_stream);
 
   if (opt.outfile)
     {

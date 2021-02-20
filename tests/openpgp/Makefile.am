@@ -35,10 +35,10 @@ fake_pinentry_SOURCES = fake-pinentry.c
 
 TESTS_ENVIRONMENT = LC_ALL=C \
 	EXEEXT=$(EXEEXT) \
-	PATH=../gpgscm:$(PATH) \
-	abs_top_srcdir=$(abs_top_srcdir) \
-	objdir=$(abs_top_builddir) \
-	GPGSCM_PATH=$(abs_top_srcdir)/tests/gpgscm
+	PATH="../gpgscm:$(PATH)" \
+	abs_top_srcdir="$(abs_top_srcdir)" \
+	objdir="$(abs_top_builddir)" \
+	GPGSCM_PATH="$(abs_top_srcdir)/tests/gpgscm"
 
 XTESTS = \
 	version.scm \
@@ -278,6 +278,8 @@ CLEANFILES = prepared.stamp x y yy z out err  $(data_files) \
 	     secring.gpg pubring.pkr secring.skr \
 	     gnupg-test.stop random_seed gpg-agent.log tofu.db \
 	     passphrases sshcontrol S.gpg-agent.ssh report.xml
+
+XTESTS += trust-pgp-4.scm
 
 clean-local:
 	-rm -rf private-keys-v1.d openpgp-revocs.d tofu.d gpgtar.d

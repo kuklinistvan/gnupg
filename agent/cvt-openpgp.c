@@ -158,7 +158,7 @@ convert_secret_key (gcry_sexp_t *r_key, int pubkey_algo, gcry_mpi_t *skey,
           if (!strcmp (curve, "Ed25519"))
             /* Do not store the OID as name but the real name and the
                EdDSA flag.  */
-            format = "(private-key(ecc(curve %s)(flags eddsa)(q%m)(d%m)))";
+            format = "(private-key(ecc(curve %s)(flags eddsa)(q%m)(d%M)))";
           else if (!strcmp (curve, "Curve25519"))
             format = "(private-key(ecc(curve %s)(flags djb-tweak)(q%m)(d%m)))";
           else
@@ -878,11 +878,11 @@ convert_from_openpgp_main (ctrl_t ctrl, gcry_sexp_t s_pgp, int dontcare_exist,
   log_debug ("XXX pubkey_algo=%d\n", pubkey_algo);
   log_debug ("XXX is_protected=%d\n", is_protected);
   log_debug ("XXX protect_algo=%d\n", protect_algo);
-  log_printhex ("XXX iv", iv, ivlen);
+  log_printhex (iv, ivlen, "XXX iv");
   log_debug ("XXX ivlen=%d\n", ivlen);
   log_debug ("XXX s2k_mode=%d\n", s2k_mode);
   log_debug ("XXX s2k_algo=%d\n", s2k_algo);
-  log_printhex ("XXX s2k_salt", s2k_salt, sizeof s2k_salt);
+  log_printhex (s2k_salt, sizeof s2k_salt, "XXX s2k_salt");
   log_debug ("XXX s2k_count=%lu\n", (unsigned long)s2k_count);
   log_debug ("XXX curve='%s'\n", curve);
   for (idx=0; skey[idx]; idx++)
@@ -1067,7 +1067,7 @@ convert_from_openpgp_native (ctrl_t ctrl,
           if (!agent_protect (*r_key, passphrase,
                               &protectedkey, &protectedkeylen,
                               ctrl->s2k_count, -1))
-            agent_write_private_key (grip, protectedkey, protectedkeylen, 1);
+            agent_write_private_key (grip, protectedkey, protectedkeylen, 1, 0);
           xfree (protectedkey);
         }
       else
@@ -1076,7 +1076,7 @@ convert_from_openpgp_native (ctrl_t ctrl,
           agent_write_private_key (grip,
                                    *r_key,
                                    gcry_sexp_canon_len (*r_key, 0, NULL,NULL),
-                                   1);
+                                   1, 0);
         }
     }
 

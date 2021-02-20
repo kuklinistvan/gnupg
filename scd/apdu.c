@@ -67,7 +67,7 @@
 #include "ccid-driver.h"
 
 struct dev_list {
-  struct ccid_dev_table *ccid_table;
+  void *table;
   const char *portstr;
   int idx;
   int idx_max;
@@ -475,7 +475,7 @@ dump_reader_status (int slot)
   if (reader_table[slot].atrlen)
     {
       log_info ("slot %d: ATR=", slot);
-      log_printhex ("", reader_table[slot].atr, reader_table[slot].atrlen);
+      log_printhex (reader_table[slot].atr, reader_table[slot].atrlen, "");
     }
 }
 
@@ -502,6 +502,13 @@ host_sw_string (long err)
     case SW_HOST_NO_PINPAD: return "no pinpad";
     case SW_HOST_ALREADY_CONNECTED: return "already connected";
     case SW_HOST_CANCELLED: return "cancelled";
+    case SW_HOST_USB_OTHER:    return "USB general error";
+    case SW_HOST_USB_IO:       return "USB I/O error";
+    case SW_HOST_USB_ACCESS:   return "USB permission denied";
+    case SW_HOST_USB_NO_DEVICE:return "USB no device";
+    case SW_HOST_USB_BUSY:     return "USB busy";
+    case SW_HOST_USB_TIMEOUT:  return "USB timeout";
+    case SW_HOST_USB_OVERFLOW: return "USB overflow";
     default: return "unknown host status error";
     }
 }
@@ -675,7 +682,7 @@ pcsc_get_status (int slot, unsigned int *status, int on_wire)
     reader_table[slot].pcsc.current_state =
       (rdrstates[0].event_state & ~PCSC_STATE_CHANGED);
 
-  if (DBG_CARD_IO)
+  if (DBG_READER)
     log_debug
       ("pcsc_get_status_change: %s%s%s%s%s%s%s%s%s%s\n",
        (rdrstates[0].event_state & PCSC_STATE_IGNORE)? " ignore":"",
@@ -739,7 +746,7 @@ pcsc_send_apdu (int slot, unsigned char *apdu, size_t apdulen,
     return err;
 
   if (DBG_CARD_IO)
-    log_printhex ("  PCSC_data:", apdu, apdulen);
+    log_printhex (apdu, apdulen, "  PCSC_data:");
 
   if ((reader_table[slot].pcsc.protocol & PCSC_PROTOCOL_T1))
       send_pci.protocol = PCSC_PROTOCOL_T1;
@@ -1453,7 +1460,7 @@ send_apdu_ccid (int slot, unsigned char *apdu, size_t apdulen,
     return err;
 
   if (DBG_CARD_IO)
-    log_printhex (" raw apdu:", apdu, apdulen);
+    log_printhex (apdu, apdulen, " raw apdu:");
 
   maxbuflen = *buflen;
   if (pininfo)
@@ -1527,7 +1534,7 @@ open_ccid_reader (struct dev_list *dl)
     return -1;
   slotp = reader_table + slot;
 
-  err = ccid_open_reader (dl->portstr, dl->idx, dl->ccid_table,
+  err = ccid_open_reader (dl->portstr, dl->idx, dl->table,
                           &slotp->ccid.handle, &slotp->rdrname);
   if (!err)
     {
@@ -1723,7 +1730,7 @@ my_rapdu_send_apdu (int slot, unsigned char *apdu, size_t apdulen,
 
   *buflen = 0;
   if (DBG_CARD_IO)
-    log_printhex ("  APDU_data:", apdu, apdulen);
+    log_printhex (apdu, apdulen, "  APDU_data:");
 
   if (apdulen < 4)
     {
@@ -1886,14 +1893,14 @@ apdu_dev_list_start (const char *portstr, struct dev_list **l_p)
 #ifdef HAVE_LIBUSB
   if (opt.disable_ccid)
     {
-      dl->ccid_table = NULL;
+      dl->table = NULL;
       dl->idx_max = 1;
     }
   else
     {
       gpg_error_t err;
 
-      err = ccid_dev_scan (&dl->idx_max, &dl->ccid_table);
+      err = ccid_dev_scan (&dl->idx_max, &dl->table);
       if (err)
         return err;
 
@@ -1915,7 +1922,7 @@ apdu_dev_list_start (const char *portstr, struct dev_list **l_p)
         }
     }
 #else
-  dl->ccid_table = NULL;
+  dl->table = NULL;
   dl->idx_max = 1;
 #endif /* HAVE_LIBUSB */
 
@@ -1927,8 +1934,8 @@ void
 apdu_dev_list_finish (struct dev_list *dl)
 {
 #ifdef HAVE_LIBUSB
-  if (dl->ccid_table)
-    ccid_dev_scan_finish (dl->ccid_table, dl->idx_max);
+  if (dl->table)
+    ccid_dev_scan_finish (dl->table, dl->idx_max);
 #endif
   xfree (dl);
   npth_mutex_unlock (&reader_table_lock);
@@ -2044,7 +2051,7 @@ apdu_open_reader (struct dev_list *dl, int app_empty)
   int slot;
 
 #ifdef HAVE_LIBUSB
-  if (dl->ccid_table)
+  if (dl->table)
     { /* CCID readers.  */
       int readerno;
 
@@ -2081,7 +2088,7 @@ apdu_open_reader (struct dev_list *dl, int app_empty)
 
       while (dl->idx < dl->idx_max)
         {
-          unsigned int bai = ccid_get_BAI (dl->idx, dl->ccid_table);
+          unsigned int bai = ccid_get_BAI (dl->idx, dl->table);
 
           if (DBG_READER)
             log_debug ("apdu_open_reader: BAI=%x\n", bai);
@@ -2879,7 +2886,7 @@ send_le (int slot, int class, int ins, int p0, int p1,
       log_debug (" response: sw=%04X  datalen=%d\n",
                  sw, (unsigned int)resultlen);
       if ( !retbuf && (sw == SW_SUCCESS || (sw & 0xff00) == SW_MORE_DATA))
-        log_printhex ("    dump: ", result, resultlen);
+        log_printhex (result, resultlen, "    dump: ");
     }
 
   if (sw == SW_SUCCESS || sw == SW_EOF_REACHED)
@@ -2952,7 +2959,7 @@ send_le (int slot, int class, int ins, int p0, int p1,
               log_debug ("     more: sw=%04X  datalen=%d\n",
                          sw, (unsigned int)resultlen);
               if (!retbuf && (sw==SW_SUCCESS || (sw&0xff00)==SW_MORE_DATA))
-                log_printhex ("     dump: ", result, resultlen);
+                log_printhex (result, resultlen, "     dump: ");
             }
 
           if ((sw & 0xff00) == SW_MORE_DATA
@@ -2998,7 +3005,7 @@ send_le (int slot, int class, int ins, int p0, int p1,
   xfree (result_buffer);
 
   if (DBG_CARD_IO && retbuf && sw == SW_SUCCESS)
-    log_printhex ("      dump: ", *retbuf, *retbuflen);
+    log_printhex (*retbuf, *retbuflen, "      dump: ");
 
   return sw;
 }
@@ -3164,7 +3171,7 @@ apdu_send_direct (int slot, size_t extended_length,
       log_debug (" response: sw=%04X  datalen=%d\n",
                  sw, (unsigned int)resultlen);
       if ( !retbuf && (sw == SW_SUCCESS || (sw & 0xff00) == SW_MORE_DATA))
-        log_printhex ("     dump: ", result, resultlen);
+        log_printhex (result, resultlen, "     dump: ");
     }
 
   if (handle_more && (sw & 0xff00) == SW_MORE_DATA)
@@ -3220,7 +3227,7 @@ apdu_send_direct (int slot, size_t extended_length,
               log_debug ("     more: sw=%04X  datalen=%d\n",
                          sw, (unsigned int)resultlen);
               if (!retbuf && (sw==SW_SUCCESS || (sw&0xff00)==SW_MORE_DATA))
-                log_printhex ("     dump: ", result, resultlen);
+                log_printhex (result, resultlen, "     dump: ");
             }
 
           if ((sw & 0xff00) == SW_MORE_DATA
@@ -3292,7 +3299,7 @@ apdu_send_direct (int slot, size_t extended_length,
     *r_sw = sw;
 
   if (DBG_CARD_IO && retbuf)
-    log_printhex ("      dump: ", *retbuf, *retbuflen);
+    log_printhex (*retbuf, *retbuflen, "      dump: ");
 
 
   return 0;

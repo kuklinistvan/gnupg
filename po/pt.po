@@ -96,6 +96,9 @@ msgstr ""
 #. the pinentry.  The %s is the actual error message, the
 #. two %d give the current and maximum number of tries.
 #. Do not translate the "SETERROR" keyword.
+#. TRANSLATORS: The string is appended to an error message in
+#. the pinentry.  The %s is the actual error message, the
+#. two %d give the current and maximum number of tries.
 #, c-format
 msgid "SETERROR %s (try %d of %d)"
 msgstr ""
@@ -427,16 +430,6 @@ msgstr ""
 #, c-format
 msgid "selected digest algorithm is invalid\n"
 msgstr "o algoritmo de \"digest\" selecionado é inválido\n"
-
-#, fuzzy, c-format
-#| msgid "NOTE: no default option file `%s'\n"
-msgid "Note: no default option file '%s'\n"
-msgstr "NOTA: ficheiro de opções por omissão `%s' inexistente\n"
-
-#, fuzzy, c-format
-#| msgid "option file `%s': %s\n"
-msgid "option file '%s': %s\n"
-msgstr "ficheiro de opções `%s': %s\n"
 
 #, fuzzy, c-format
 #| msgid "reading options from `%s'\n"
@@ -1076,9 +1069,25 @@ msgstr "comandos em conflito\n"
 msgid "invalid alias definition"
 msgstr "opções de importação inválidas\n"
 
+msgid "permission error"
+msgstr ""
+
 #, fuzzy
 msgid "out of core"
 msgstr "não processado"
+
+#, fuzzy
+msgid "invalid meta command"
+msgstr "comandos em conflito\n"
+
+#, fuzzy
+msgid "unknown meta command"
+msgstr "destinatário por omissão desconhecido `%s'\n"
+
+#, fuzzy
+#| msgid "unexpected data"
+msgid "unexpected meta command"
+msgstr "dados inesperados"
 
 #, fuzzy
 msgid "invalid option"
@@ -1109,12 +1118,22 @@ msgid "command \"%.50s\" is ambiguous\n"
 msgstr ""
 
 #, fuzzy, c-format
-msgid "out of core\n"
-msgstr "não processado"
-
-#, fuzzy, c-format
 msgid "invalid option \"%.50s\"\n"
 msgstr "opções de importação inválidas\n"
+
+#, fuzzy, c-format
+#| msgid "NOTE: no default option file `%s'\n"
+msgid "Note: no default option file '%s'\n"
+msgstr "NOTA: ficheiro de opções por omissão `%s' inexistente\n"
+
+#, fuzzy, c-format
+#| msgid "option file `%s': %s\n"
+msgid "option file '%s': %s\n"
+msgstr "ficheiro de opções `%s': %s\n"
+
+#, c-format
+msgid "Note: ignoring option \"--%s\" due to global config\n"
+msgstr ""
 
 #, fuzzy, c-format
 msgid "conversion from '%s' to '%s' not available\n"
@@ -1779,6 +1798,14 @@ msgid "WARNING: '%s' is an empty file\n"
 msgstr "AVISO: `%s' é um ficheiro vazio\n"
 
 #, fuzzy, c-format
+msgid "cipher algorithm '%s' may not be used in %s mode\n"
+msgstr "não pode utilizar %s enquanto estiver no modo %s\n"
+
+#, fuzzy, c-format
+msgid "digest algorithm '%s' may not be used in %s mode\n"
+msgstr "não pode utilizar %s enquanto estiver no modo %s\n"
+
+#, fuzzy, c-format
 #| msgid "reading from `%s'\n"
 msgid "reading from '%s'\n"
 msgstr "lendo de `%s'\n"
@@ -1788,10 +1815,6 @@ msgid ""
 "WARNING: forcing symmetric cipher %s (%d) violates recipient preferences\n"
 msgstr ""
 "ao forçar a cifra simétrica %s (%d) viola as preferências do destinatário\n"
-
-#, fuzzy, c-format
-msgid "cipher algorithm '%s' may not be used in %s mode\n"
-msgstr "não pode utilizar %s enquanto estiver no modo %s\n"
 
 #, fuzzy, c-format
 msgid "WARNING: key %s is not suitable for encryption in %s mode\n"
@@ -2073,6 +2096,11 @@ msgstr "assinar uma chave"
 msgid "quickly sign a key locally"
 msgstr "assinar uma chave localmente"
 
+#, fuzzy
+#| msgid "generate a new key pair"
+msgid "quickly revoke a key signature"
+msgstr "gerar um novo par de chaves"
+
 msgid "sign a key"
 msgstr "assinar uma chave"
 
@@ -2351,11 +2379,6 @@ msgid "(use \"help\" to list choices)\n"
 msgstr ""
 
 #, fuzzy, c-format
-#| msgid "NOTE: old default options file `%s' ignored\n"
-msgid "Note: old default options file '%s' ignored\n"
-msgstr "NOTA: o ficheiro antigo de opções por omissão `%s' foi ignorado\n"
-
-#, fuzzy, c-format
 #| msgid "NOTE: %s is not for normal use!\n"
 msgid "Note: %s is not for normal use!\n"
 msgstr "NOTA: %s não é para uso normal!\n"
@@ -2561,10 +2584,6 @@ msgstr "preferências pessoais de compressão inválidas\n"
 #, fuzzy, c-format
 msgid "%s does not yet work with %s\n"
 msgstr "%s não faz sentido com %s!\n"
-
-#, fuzzy, c-format
-msgid "digest algorithm '%s' may not be used in %s mode\n"
-msgstr "não pode utilizar %s enquanto estiver no modo %s\n"
 
 #, fuzzy, c-format
 msgid "compression algorithm '%s' may not be used in %s mode\n"
@@ -3115,6 +3134,59 @@ msgstr "chave %08lX: certificado de revogação \"%s\" adicionado\n"
 #, fuzzy, c-format
 msgid "key %s: direct key signature added\n"
 msgstr "chave %08lX: assinatura directa de chave adicionada\n"
+
+#, fuzzy, c-format
+msgid "error allocating memory: %s\n"
+msgstr "erro ao criar porta-chaves `%s': %s\n"
+
+#, fuzzy, c-format
+msgid "can't check signature with unsupported public-key algorithm (%d): %s.\n"
+msgstr "chave %08lX: algoritmo de chave pública não suportado\n"
+
+#, fuzzy, c-format
+msgid ""
+"can't check signature with unsupported message-digest algorithm %d: %s.\n"
+msgstr "assinatura %s de: \"%s\"\n"
+
+#, fuzzy
+msgid " (reordered signatures follow)"
+msgstr "Assinatura correcta de \""
+
+#, fuzzy, c-format
+msgid "key %s:\n"
+msgstr "ignorado `%s': %s\n"
+
+#, fuzzy, c-format
+msgid "%d duplicate signature removed\n"
+msgid_plural "%d duplicate signatures removed\n"
+msgstr[0] "Utilizador \"%s\" está revocado."
+msgstr[1] "Utilizador \"%s\" está revocado."
+
+#, fuzzy, c-format
+#| msgid "1 signature not checked due to a missing key\n"
+msgid "%d signature not checked due to a missing key\n"
+msgid_plural "%d signatures not checked due to missing keys\n"
+msgstr[0] "1 assinatura não verificada por falta de chave\n"
+msgstr[1] "1 assinatura não verificada por falta de chave\n"
+
+#, fuzzy, c-format
+#| msgid "%d bad signatures\n"
+msgid "%d bad signature\n"
+msgid_plural "%d bad signatures\n"
+msgstr[0] "%d assinaturas incorrectas\n"
+msgstr[1] "%d assinaturas incorrectas\n"
+
+#, fuzzy, c-format
+msgid "%d signature reordered\n"
+msgid_plural "%d signatures reordered\n"
+msgstr[0] "Assinatura correcta de \""
+msgstr[1] "Assinatura correcta de \""
+
+#, c-format
+msgid ""
+"Warning: errors found and only checked self-signatures, run '%s' to check "
+"all signatures.\n"
+msgstr ""
 
 #, fuzzy, c-format
 msgid "error creating keybox '%s': %s\n"
@@ -3684,6 +3756,15 @@ msgid "Nothing to sign.\n"
 msgstr "Nada para assinar com a chave %08lX\n"
 
 #, fuzzy, c-format
+msgid "Not signed by you.\n"
+msgstr "   assinado por %08lX em %s%s\n"
+
+#, fuzzy, c-format
+#| msgid "checking created signature failed: %s\n"
+msgid "revoking the key signature failed: %s\n"
+msgstr "verificação da assinatura criada falhou: %s\n"
+
+#, fuzzy, c-format
 msgid "'%s' is not a valid expiration time\n"
 msgstr "%s não é um conjunto de caracteres válido\n"
 
@@ -3694,6 +3775,9 @@ msgstr "%s: versão de ficheiro inválida %d\n"
 #, fuzzy, c-format
 msgid "subkey \"%s\" not found\n"
 msgstr "chave `%s' não encontrada: %s\n"
+
+msgid "AEAD: "
+msgstr ""
 
 msgid "Digest: "
 msgstr "'Digest': "
@@ -3983,10 +4067,6 @@ msgstr "Tem a certeza de que quer revogá-la de qualquer forma? (s/N) "
 
 msgid "Create a revocation certificate for this signature? (y/N) "
 msgstr "Gerar um certificado de revogação para esta assinatura? (s/N)"
-
-#, fuzzy
-msgid "Not signed by you.\n"
-msgstr "   assinado por %08lX em %s%s\n"
 
 #, fuzzy, c-format
 msgid "You have signed these user IDs on key %s:\n"
@@ -4553,20 +4633,6 @@ msgid "%d good signature\n"
 msgid_plural "%d good signatures\n"
 msgstr[0] "%d assinaturas incorrectas\n"
 msgstr[1] "%d assinaturas incorrectas\n"
-
-#, fuzzy, c-format
-#| msgid "%d bad signatures\n"
-msgid "%d bad signature\n"
-msgid_plural "%d bad signatures\n"
-msgstr[0] "%d assinaturas incorrectas\n"
-msgstr[1] "%d assinaturas incorrectas\n"
-
-#, fuzzy, c-format
-#| msgid "1 signature not checked due to a missing key\n"
-msgid "%d signature not checked due to a missing key\n"
-msgid_plural "%d signatures not checked due to missing keys\n"
-msgstr[0] "1 assinatura não verificada por falta de chave\n"
-msgstr[1] "1 assinatura não verificada por falta de chave\n"
 
 #, fuzzy, c-format
 #| msgid "1 signature not checked due to an error\n"
@@ -6413,6 +6479,26 @@ msgid ""
 "List, export, import Keybox data\n"
 msgstr "Uso: gpg [opções] [ficheiros] (-h para ajuda)"
 
+#. TRANSLATORS: Put a \x1f right before a colon.  This can be
+#. * used by pinentry to nicely align the names and values.  Keep
+#. * the %s at the start and end of the string.
+#, c-format
+msgid "%sNumber: %s%%0AHolder: %s%s"
+msgstr ""
+
+#. TRANSLATORS: This is the number of remaining attempts to
+#. * enter a PIN.  Use %%0A (double-percent,0A) for a linefeed.
+#, c-format
+msgid "Remaining attempts: %d"
+msgstr ""
+
+msgid "||Please enter the PIN for the key to create qualified signatures."
+msgstr ""
+
+#, fuzzy
+msgid "||Please enter the PIN for the standard keys."
+msgstr "muda a frase secreta"
+
 #, c-format
 msgid "RSA modulus missing or not of size %d bits\n"
 msgstr ""
@@ -6434,10 +6520,6 @@ msgid "|N|Please enter a new PIN for the standard keys."
 msgstr "muda a frase secreta"
 
 #, fuzzy
-msgid "||Please enter the PIN for the standard keys."
-msgstr "muda a frase secreta"
-
-#, fuzzy
 msgid "|NP|Please enter a new PIN Unblocking Code (PUK) for the standard keys."
 msgstr "motivo da revocação: "
 
@@ -6446,9 +6528,6 @@ msgid "|P|Please enter the PIN Unblocking Code (PUK) for the standard keys."
 msgstr "motivo da revocação: "
 
 msgid "|N|Please enter a new PIN for the key to create qualified signatures."
-msgstr ""
-
-msgid "||Please enter the PIN for the key to create qualified signatures."
 msgstr ""
 
 msgid ""
@@ -6503,16 +6582,6 @@ msgstr "remoção do bloco de chave falhou: %s\n"
 #. * the %s at the start and end of the string.
 #, c-format
 msgid "%sNumber: %s%%0AHolder: %s%%0ACounter: %lu%s"
-msgstr ""
-
-#, c-format
-msgid "%sNumber: %s%%0AHolder: %s%s"
-msgstr ""
-
-#. TRANSLATORS: This is the number of remaining attempts to
-#. * enter a PIN.  Use %%0A (double-percent,0A) for a linefeed.
-#, c-format
-msgid "Remaining attempts: %d"
 msgstr ""
 
 #, c-format
@@ -6771,6 +6840,10 @@ msgstr "a escrever chave privada para `%s'\n"
 msgid "certificate policy not allowed"
 msgstr "a escrever chave privada para `%s'\n"
 
+#, fuzzy, c-format
+msgid "failed to get the fingerprint\n"
+msgstr "falha ao inicializar a base de dados de confiança: %s\n"
+
 #, c-format
 msgid "looking up issuer at external location\n"
 msgstr ""
@@ -6778,6 +6851,11 @@ msgstr ""
 #, c-format
 msgid "number of issuers matching: %d\n"
 msgstr ""
+
+#, fuzzy, c-format
+#| msgid "%s: can't access: %s\n"
+msgid "can't get authorityInfoAccess: %s\n"
+msgstr "%s: impossível aceder: %s\n"
 
 #, c-format
 msgid "looking up issuer from the Dirmngr cache\n"
@@ -6945,6 +7023,10 @@ msgstr ""
 #, c-format
 msgid "a %u bit hash is not valid for a %u bit %s key\n"
 msgstr ""
+
+#, fuzzy, c-format
+msgid "out of core\n"
+msgstr "não processado"
 
 #, c-format
 msgid "(this is the MD2 algorithm)\n"
@@ -7389,10 +7471,6 @@ msgstr "erro na criação da frase secreta: %s\n"
 msgid "error reading input: %s\n"
 msgstr "erro na leitura de `%s': %s\n"
 
-#, fuzzy, c-format
-msgid "failed to get the fingerprint\n"
-msgstr "falha ao inicializar a base de dados de confiança: %s\n"
-
 #, c-format
 msgid "problem looking for existing certificate: %s\n"
 msgstr ""
@@ -7472,8 +7550,8 @@ msgid "[date not given]"
 msgstr ""
 
 #, fuzzy, c-format
-msgid " using certificate ID 0x%08lX\n"
-msgstr "erro na criação da frase secreta: %s\n"
+msgid "algorithm:"
+msgstr "armadura: %s\n"
 
 #, c-format
 msgid ""
@@ -7802,6 +7880,14 @@ msgstr ""
 msgid "error getting data from cache file: %s\n"
 msgstr "erro na criação da frase secreta: %s\n"
 
+#, c-format
+msgid "got an invalid S-expression from libksba\n"
+msgstr ""
+
+#, fuzzy, c-format
+msgid "converting S-expression failed: %s\n"
+msgstr "impossível abrir %s: %s\n"
+
 #, fuzzy, c-format
 #| msgid "invalid hash algorithm `%s'\n"
 msgid "unknown hash algorithm '%s'\n"
@@ -7810,14 +7896,6 @@ msgstr "algoritmo de dispersão inválido `%s'\n"
 #, c-format
 msgid "gcry_md_open for algorithm %d failed: %s\n"
 msgstr ""
-
-#, c-format
-msgid "got an invalid S-expression from libksba\n"
-msgstr ""
-
-#, fuzzy, c-format
-msgid "converting S-expression failed: %s\n"
-msgstr "impossível abrir %s: %s\n"
 
 #, fuzzy, c-format
 msgid "creating S-expression failed: %s\n"
@@ -8453,10 +8531,6 @@ msgid "redirection changed to '%s'\n"
 msgstr "a escrever para `%s'\n"
 
 #, fuzzy, c-format
-msgid "error allocating memory: %s\n"
-msgstr "erro ao criar porta-chaves `%s': %s\n"
-
-#, fuzzy, c-format
 msgid "error printing log line: %s\n"
 msgstr "erro na escrita do porta-chaves `%s': %s\n"
 
@@ -8601,11 +8675,6 @@ msgstr "gerar um certificado de revogação"
 #, fuzzy, c-format
 msgid "failed to allocate OCSP context: %s\n"
 msgstr "falha ao inicializar a base de dados de confiança: %s\n"
-
-#, fuzzy, c-format
-#| msgid "%s: can't access: %s\n"
-msgid "can't get authorityInfoAccess: %s\n"
-msgstr "%s: impossível aceder: %s\n"
 
 #, c-format
 msgid "no default OCSP responder defined\n"
@@ -9053,146 +9122,6 @@ msgid "No argument allowed"
 msgstr "a escrever chave privada para `%s'\n"
 
 #, fuzzy
-msgid ""
-"@\n"
-"Commands:\n"
-" "
-msgstr ""
-"@Comandos:\n"
-" "
-
-#, fuzzy
-msgid "decryption modus"
-msgstr "decifragem correcta\n"
-
-#, fuzzy
-msgid "encryption modus"
-msgstr "decifragem correcta\n"
-
-msgid "tool class (confucius)"
-msgstr ""
-
-#, fuzzy
-msgid "program filename"
-msgstr "--store [nome_do_ficheiro]"
-
-msgid "secret key file (required)"
-msgstr ""
-
-msgid "input file name (default stdin)"
-msgstr ""
-
-#, fuzzy
-msgid "Usage: symcryptrun [options] (-h for help)"
-msgstr "Uso: gpg [opções] [ficheiros] (-h para ajuda)"
-
-msgid ""
-"Syntax: symcryptrun --class CLASS --program PROGRAM --keyfile KEYFILE "
-"[options...] COMMAND [inputfile]\n"
-"Call a simple symmetric encryption tool\n"
-msgstr ""
-
-#, fuzzy, c-format
-msgid "%s on %s aborted with status %i\n"
-msgstr "%s não é permitido com %s!\n"
-
-#, fuzzy, c-format
-msgid "%s on %s failed with status %i\n"
-msgstr "impossível abrir %s: %s\n"
-
-#, fuzzy, c-format
-msgid "can't create temporary directory '%s': %s\n"
-msgstr "%s: impossível criar directoria: %s\n"
-
-#, fuzzy, c-format
-msgid "could not open %s for writing: %s\n"
-msgstr "impossível abrir %s: %s\n"
-
-#, fuzzy, c-format
-msgid "error writing to %s: %s\n"
-msgstr "erro na escrita do porta-chaves `%s': %s\n"
-
-#, fuzzy, c-format
-msgid "error reading from %s: %s\n"
-msgstr "erro na leitura de `%s': %s\n"
-
-#, fuzzy, c-format
-msgid "error closing %s: %s\n"
-msgstr "erro na leitura de `%s': %s\n"
-
-#, c-format
-msgid "no --program option provided\n"
-msgstr ""
-
-#, c-format
-msgid "only --decrypt and --encrypt are supported\n"
-msgstr ""
-
-#, c-format
-msgid "no --keyfile option provided\n"
-msgstr ""
-
-#, c-format
-msgid "cannot allocate args vector\n"
-msgstr ""
-
-#, fuzzy, c-format
-msgid "could not create pipe: %s\n"
-msgstr "impossível criar %s: %s\n"
-
-#, fuzzy, c-format
-msgid "could not create pty: %s\n"
-msgstr "impossível criar %s: %s\n"
-
-#, c-format
-msgid "could not fork: %s\n"
-msgstr ""
-
-#, fuzzy, c-format
-msgid "execv failed: %s\n"
-msgstr "actualização falhou: %s\n"
-
-#, fuzzy, c-format
-msgid "select failed: %s\n"
-msgstr "remoção do bloco de chave falhou: %s\n"
-
-#, fuzzy, c-format
-msgid "read failed: %s\n"
-msgstr "actualização falhou: %s\n"
-
-#, fuzzy, c-format
-msgid "pty read failed: %s\n"
-msgstr "actualização falhou: %s\n"
-
-#, fuzzy, c-format
-msgid "waitpid failed: %s\n"
-msgstr "actualização falhou: %s\n"
-
-#, c-format
-msgid "child aborted with status %i\n"
-msgstr ""
-
-#, fuzzy, c-format
-msgid "cannot allocate infile string: %s\n"
-msgstr "impossível criar `%s': %s\n"
-
-#, fuzzy, c-format
-msgid "cannot allocate outfile string: %s\n"
-msgstr "impossível criar `%s': %s\n"
-
-#, c-format
-msgid "either %s or %s must be given\n"
-msgstr ""
-
-#, c-format
-msgid "no class provided\n"
-msgstr ""
-
-#, fuzzy, c-format
-msgid "class %s is not supported\n"
-msgstr "algoritmo de protecção %d%s não é suportado\n"
-
-#, fuzzy
 msgid "Usage: gpg-check-pattern [options] patternfile (-h for help)\n"
 msgstr "Uso: gpg [opções] [ficheiros] (-h para ajuda)"
 
@@ -9200,6 +9129,108 @@ msgid ""
 "Syntax: gpg-check-pattern [options] patternfile\n"
 "Check a passphrase given on stdin against the patternfile\n"
 msgstr ""
+
+#, fuzzy
+#~| msgid "NOTE: old default options file `%s' ignored\n"
+#~ msgid "Note: old default options file '%s' ignored\n"
+#~ msgstr "NOTA: o ficheiro antigo de opções por omissão `%s' foi ignorado\n"
+
+#, fuzzy
+#~ msgid ""
+#~ "@\n"
+#~ "Commands:\n"
+#~ " "
+#~ msgstr ""
+#~ "@Comandos:\n"
+#~ " "
+
+#, fuzzy
+#~ msgid "decryption modus"
+#~ msgstr "decifragem correcta\n"
+
+#, fuzzy
+#~ msgid "encryption modus"
+#~ msgstr "decifragem correcta\n"
+
+#, fuzzy
+#~ msgid "program filename"
+#~ msgstr "--store [nome_do_ficheiro]"
+
+#, fuzzy
+#~ msgid "Usage: symcryptrun [options] (-h for help)"
+#~ msgstr "Uso: gpg [opções] [ficheiros] (-h para ajuda)"
+
+#, fuzzy
+#~ msgid "%s on %s aborted with status %i\n"
+#~ msgstr "%s não é permitido com %s!\n"
+
+#, fuzzy
+#~ msgid "%s on %s failed with status %i\n"
+#~ msgstr "impossível abrir %s: %s\n"
+
+#, fuzzy
+#~ msgid "can't create temporary directory '%s': %s\n"
+#~ msgstr "%s: impossível criar directoria: %s\n"
+
+#, fuzzy
+#~ msgid "could not open %s for writing: %s\n"
+#~ msgstr "impossível abrir %s: %s\n"
+
+#, fuzzy
+#~ msgid "error writing to %s: %s\n"
+#~ msgstr "erro na escrita do porta-chaves `%s': %s\n"
+
+#, fuzzy
+#~ msgid "error reading from %s: %s\n"
+#~ msgstr "erro na leitura de `%s': %s\n"
+
+#, fuzzy
+#~ msgid "error closing %s: %s\n"
+#~ msgstr "erro na leitura de `%s': %s\n"
+
+#, fuzzy
+#~ msgid "could not create pipe: %s\n"
+#~ msgstr "impossível criar %s: %s\n"
+
+#, fuzzy
+#~ msgid "could not create pty: %s\n"
+#~ msgstr "impossível criar %s: %s\n"
+
+#, fuzzy
+#~ msgid "execv failed: %s\n"
+#~ msgstr "actualização falhou: %s\n"
+
+#, fuzzy
+#~ msgid "select failed: %s\n"
+#~ msgstr "remoção do bloco de chave falhou: %s\n"
+
+#, fuzzy
+#~ msgid "read failed: %s\n"
+#~ msgstr "actualização falhou: %s\n"
+
+#, fuzzy
+#~ msgid "pty read failed: %s\n"
+#~ msgstr "actualização falhou: %s\n"
+
+#, fuzzy
+#~ msgid "waitpid failed: %s\n"
+#~ msgstr "actualização falhou: %s\n"
+
+#, fuzzy
+#~ msgid "cannot allocate infile string: %s\n"
+#~ msgstr "impossível criar `%s': %s\n"
+
+#, fuzzy
+#~ msgid "cannot allocate outfile string: %s\n"
+#~ msgstr "impossível criar `%s': %s\n"
+
+#, fuzzy
+#~ msgid "class %s is not supported\n"
+#~ msgstr "algoritmo de protecção %d%s não é suportado\n"
+
+#, fuzzy
+#~ msgid " using certificate ID 0x%08lX\n"
+#~ msgstr "erro na criação da frase secreta: %s\n"
 
 #, fuzzy
 #~| msgid "you may not use %s while in %s mode\n"
@@ -9288,36 +9319,6 @@ msgstr ""
 #, fuzzy
 #~ msgid "listen() failed: %s\n"
 #~ msgstr "actualização falhou: %s\n"
-
-#, fuzzy
-#~ msgid ""
-#~ "can't check signature with unsupported public-key algorithm (%d): %s.\n"
-#~ msgstr "chave %08lX: algoritmo de chave pública não suportado\n"
-
-#, fuzzy
-#~ msgid ""
-#~ "can't check signature with unsupported message-digest algorithm %d: %s.\n"
-#~ msgstr "assinatura %s de: \"%s\"\n"
-
-#, fuzzy
-#~ msgid " (reordered signatures follow)"
-#~ msgstr "Assinatura correcta de \""
-
-#, fuzzy
-#~ msgid "key %s:\n"
-#~ msgstr "ignorado `%s': %s\n"
-
-#, fuzzy
-#~ msgid "%d duplicate signature removed\n"
-#~ msgid_plural "%d duplicate signatures removed\n"
-#~ msgstr[0] "Utilizador \"%s\" está revocado."
-#~ msgstr[1] "Utilizador \"%s\" está revocado."
-
-#, fuzzy
-#~ msgid "%d signature reordered\n"
-#~ msgid_plural "%d signatures reordered\n"
-#~ msgstr[0] "Assinatura correcta de \""
-#~ msgstr[1] "Assinatura correcta de \""
 
 #, fuzzy
 #~| msgid "new configuration file `%s' created\n"
@@ -10398,9 +10399,6 @@ msgstr ""
 
 #~ msgid "file delete error"
 #~ msgstr "erro na remoção do ficheiro"
-
-#~ msgid "unexpected data"
-#~ msgstr "dados inesperados"
 
 #~ msgid "timestamp conflict"
 #~ msgstr "conflito de \"timestamp\""

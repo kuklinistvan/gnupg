@@ -72,7 +72,7 @@ prepare_decryption (ctrl_t ctrl, const char *hexkeygrip, const char *desc,
     }
 
   if (DBG_CRYPTO)
-    log_printhex ("pkcs1 encoded session key:", seskey, seskeylen);
+    log_printhex (seskey, seskeylen, "pkcs1 encoded session key:");
 
   n=0;
   if (seskeylen == 32 || seskeylen == 24 || seskeylen == 16)
@@ -115,7 +115,7 @@ prepare_decryption (ctrl_t ctrl, const char *hexkeygrip, const char *desc,
     }
 
   if (DBG_CRYPTO)
-    log_printhex ("session key:", seskey+n, seskeylen-n);
+    log_printhex (seskey+n, seskeylen-n, "session key:");
 
   rc = gcry_cipher_open (&parm->hd, parm->algo, parm->mode, 0);
   if (rc)
@@ -483,7 +483,7 @@ gpgsm_decrypt (ctrl_t ctrl, int in_fd, estream_t out_fp)
                     /* Check compliance.  */
                     if (!gnupg_pk_is_allowed (opt.compliance,
                                               PK_USE_DECRYPTION,
-                                              pk_algo, NULL, nbits, NULL))
+                                              pk_algo, 0, NULL, nbits, NULL))
                       {
                         char  kidstr[10+1];
 
@@ -501,7 +501,7 @@ gpgsm_decrypt (ctrl_t ctrl, int in_fd, estream_t out_fp)
                     /* Check that all certs are compliant with CO_DE_VS.  */
                     is_de_vs =
                       (is_de_vs
-                       && gnupg_pk_is_compliant (CO_DE_VS, pk_algo, NULL,
+                       && gnupg_pk_is_compliant (CO_DE_VS, pk_algo, 0, NULL,
                                                  nbits, NULL));
                   }
 

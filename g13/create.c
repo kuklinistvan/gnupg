@@ -33,6 +33,7 @@
 #include "keyblob.h"
 #include "backend.h"
 #include "g13tuple.h"
+#include "../common/sysutils.h"
 #include "../common/call-gpg.h"
 
 /* Create a new blob with all the session keys and other meta
@@ -250,7 +251,7 @@ g13_create_container (ctrl_t ctrl, const char *filename)
     {
       struct stat sb;
 
-      if (!stat (detachedname, &sb))
+      if (!gnupg_stat (detachedname, &sb))
         {
           err = gpg_error (GPG_ERR_EEXIST);
           goto leave;

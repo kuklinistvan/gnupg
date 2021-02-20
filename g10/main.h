@@ -95,6 +95,7 @@ void print_sha1_keysig_rejected_note (void);
 void print_reported_error (gpg_error_t err, gpg_err_code_t skip_if_ec);
 void print_further_info (const char *format, ...) GPGRT_ATTR_PRINTF(1,2);
 void additional_weak_digest (const char* digestname);
+int  is_weak_digest (digest_algo_t algo);
 
 /*-- armor.c --*/
 char *make_radix64_string( const byte *data, size_t len );
@@ -121,6 +122,12 @@ enum gcry_cipher_algos map_cipher_openpgp_to_gcry (cipher_algo_t algo);
 int openpgp_cipher_blocklen (cipher_algo_t algo);
 int openpgp_cipher_test_algo(cipher_algo_t algo);
 const char *openpgp_cipher_algo_name (cipher_algo_t algo);
+
+gpg_error_t openpgp_aead_test_algo (aead_algo_t algo);
+const char *openpgp_aead_algo_name (aead_algo_t algo);
+gpg_error_t openpgp_aead_algo_info (aead_algo_t algo,
+                                    enum gcry_cipher_modes *r_mode,
+                                    unsigned int *r_noncelen);
 
 pubkey_algo_t map_pk_gcry_to_openpgp (enum gcry_pk_algos algo);
 int openpgp_pk_test_algo (pubkey_algo_t algo);
@@ -223,7 +230,7 @@ int  cpr_get_answer_okay_cancel (const char *keyword,
 void display_online_help( const char *keyword );
 
 /*-- encode.c --*/
-int setup_symkey (STRING2KEY **symkey_s2k,DEK **symkey_dek);
+gpg_error_t setup_symkey (STRING2KEY **symkey_s2k,DEK **symkey_dek);
 void encrypt_seskey (DEK *dek, DEK **seskey, byte *enckey);
 int use_mdc (pk_list_t pk_list,int algo);
 int encrypt_symmetric (const char *filename );
@@ -441,8 +448,9 @@ int gen_desig_revoke (ctrl_t ctrl, const char *uname, strlist_t locusr);
 int revocation_reason_build_cb( PKT_signature *sig, void *opaque );
 struct revocation_reason_info *
 		ask_revocation_reason( int key_rev, int cert_rev, int hint );
-struct revocation_reason_info * get_default_uid_revocation_reason(void);
-void release_revocation_reason_info( struct revocation_reason_info *reason );
+struct revocation_reason_info * get_default_uid_revocation_reason (void);
+struct revocation_reason_info * get_default_sig_revocation_reason (void);
+void release_revocation_reason_info (struct revocation_reason_info *reason);
 
 /*-- keylist.c --*/
 void public_key_list (ctrl_t ctrl, strlist_t list,
@@ -452,6 +460,7 @@ void print_subpackets_colon(PKT_signature *sig);
 void reorder_keyblock (KBNODE keyblock);
 void list_keyblock_direct (ctrl_t ctrl, kbnode_t keyblock, int secret,
                            int has_secret, int fpr, int no_validity);
+int  cmp_signodes (const void *av, const void *bv);
 void print_fingerprint (ctrl_t ctrl, estream_t fp,
                         PKT_public_key *pk, int mode);
 void print_revokers (estream_t fp, PKT_public_key *pk);

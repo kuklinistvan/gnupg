@@ -1,6 +1,7 @@
 /* gpg-agent.c  -  The GnuPG Agent
- * Copyright (C) 2000-2007, 2009-2010 Free Software Foundation, Inc.
- * Copyright (C) 2000-2016 Werner Koch
+ * Copyright (C) 2000-2020 Free Software Foundation, Inc.
+ * Copyright (C) 2000-2019 Werner Koch
+ * Copyright (C) 2015-2020 g10 Code GmbH
  *
  * This file is part of GnuPG.
  *
@@ -16,6 +17,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #include <config.h>
@@ -113,6 +115,7 @@ enum cmd_and_opt_values
   oCheckPassphrasePattern,
   oMaxPassphraseDays,
   oEnablePassphraseHistory,
+  oDisableExtendedKeyFormat,
   oEnableExtendedKeyFormat,
   oUseStandardSocket,
   oNoUseStandardSocket,
@@ -140,7 +143,9 @@ enum cmd_and_opt_values
   oAutoExpandSecmem,
   oListenBacklog,
 
-  oWriteEnvFile
+  oWriteEnvFile,
+
+  oNoop
 };
 
 
@@ -166,7 +171,7 @@ static ARGPARSE_OPTS opts[] = {
   ARGPARSE_s_n (oQuiet,	  "quiet",     N_("be somewhat more quiet")),
   ARGPARSE_s_n (oSh,	  "sh",        N_("sh-style command output")),
   ARGPARSE_s_n (oCsh,	  "csh",       N_("csh-style command output")),
-  ARGPARSE_s_s (oOptions, "options", N_("|FILE|read options from FILE")),
+  ARGPARSE_conffile (oOptions, "options", N_("|FILE|read options from FILE")),
 
   ARGPARSE_s_s (oDebug,	     "debug",       "@"),
   ARGPARSE_s_n (oDebugAll,   "debug-all",   "@"),
@@ -252,6 +257,7 @@ static ARGPARSE_OPTS opts[] = {
                 /* */           "@"
 #endif
                 ),
+  ARGPARSE_s_n (oDisableExtendedKeyFormat, "disable-extended-key-format", "@"),
   ARGPARSE_s_n (oEnableExtendedKeyFormat, "enable-extended-key-format", "@"),
 
   ARGPARSE_s_u (oS2KCount, "s2k-count", "@"),
@@ -260,11 +266,15 @@ static ARGPARSE_OPTS opts[] = {
   ARGPARSE_op_u (oAutoExpandSecmem, "auto-expand-secmem", "@"),
 
   ARGPARSE_s_i (oListenBacklog, "listen-backlog", "@"),
+  ARGPARSE_noconffile (oNoOptions, "no-options", "@"),
 
   /* Dummy options for backward compatibility.  */
   ARGPARSE_o_s (oWriteEnvFile, "write-env-file", "@"),
   ARGPARSE_s_n (oUseStandardSocket, "use-standard-socket", "@"),
   ARGPARSE_s_n (oNoUseStandardSocket, "no-use-standard-socket", "@"),
+
+  /* Dummy options.  */
+
 
   ARGPARSE_end () /* End of list */
 };
@@ -390,7 +400,9 @@ static char *default_lc_ctype;
 static char *default_lc_messages;
 static char *default_xauthority;
 
-/* Name of a config file, which will be reread on a HUP if it is not NULL. */
+/* Name of a config file which was last read on startup or, if missing,
+ * the name of the standard config file.  Any value here enables the
+ * rereading of the standard config files on SIGHUP. */
 static char *config_filename;
 
 /* Helper to implement --debug-level */
@@ -507,9 +519,11 @@ my_strusage (int level)
 
   switch (level)
     {
+    case  9: p = "GPL-3.0-or-later"; break;
     case 11: p = "@GPG_AGENT@ (@GNUPG@)";
       break;
     case 13: p = VERSION; break;
+    case 14: p = GNUPG_DEF_COPYRIGHT_LINE; break;
     case 17: p = PRINTABLE_OS_NAME; break;
       /* TRANSLATORS: @EMAIL@ will get replaced by the actual bug
          reporting address.  This is so that we can change the
@@ -826,7 +840,7 @@ parse_rereadable_options (ARGPARSE_ARGS *pargs, int reread)
       opt.check_passphrase_pattern = NULL;
       opt.max_passphrase_days = MAX_PASSPHRASE_DAYS;
       opt.enable_passphrase_history = 0;
-      opt.enable_extended_key_format = 0;
+      opt.enable_extended_key_format = 1;
       opt.ignore_cache_for_signing = 0;
       opt.allow_mark_trusted = 1;
       opt.allow_external_cache = 1;
@@ -902,7 +916,11 @@ parse_rereadable_options (ARGPARSE_ARGS *pargs, int reread)
       break;
 
     case oEnableExtendedKeyFormat:
-      opt.enable_extended_key_format = 1;
+      opt.enable_extended_key_format = 2;
+      break;
+    case oDisableExtendedKeyFormat:
+      if (opt.enable_extended_key_format != 2)
+        opt.enable_extended_key_format = 0;
       break;
 
     case oIgnoreCacheForSigning: opt.ignore_cache_for_signing = 1; break;
@@ -936,6 +954,8 @@ parse_rereadable_options (ARGPARSE_ARGS *pargs, int reread)
     case oS2KCalibration:
       set_s2k_calibration_time (pargs->r.ret_ulong);
       break;
+
+    case oNoop: break;
 
     default:
       return 0; /* not handled */
@@ -971,9 +991,7 @@ thread_init_once (void)
    * has already been initialized but at that point nPth was not
    * initialized and thus Libgcrypt could not set its system call
    * clamp.  */
-#if GCRYPT_VERSION_NUMBER >= 0x010800 /* 1.8.0 */
   gcry_control (GCRYCTL_REINIT_SYSCALL_CLAMP, 0, 0);
-#endif
 }
 
 
@@ -996,12 +1014,10 @@ main (int argc, char **argv )
   ARGPARSE_ARGS pargs;
   int orig_argc;
   char **orig_argv;
-  FILE *configfp = NULL;
-  char *configname = NULL;
+  char *last_configname = NULL;
+  const char *configname = NULL;
+  int debug_argparser = 0;
   const char *shell;
-  unsigned configlineno;
-  int parse_debug = 0;
-  int default_config =1;
   int pipe_server = 0;
   int is_daemon = 0;
   int nodetach = 0;
@@ -1100,80 +1116,67 @@ main (int argc, char **argv )
   orig_argv = argv;
   pargs.argc = &argc;
   pargs.argv = &argv;
-  pargs.flags= 1|(1<<6);  /* do not remove the args, ignore version */
-  while (arg_parse( &pargs, opts))
+  pargs.flags= (ARGPARSE_FLAG_KEEP | ARGPARSE_FLAG_NOVERSION);
+  while (gnupg_argparse (NULL, &pargs, opts))
     {
-      if (pargs.r_opt == oDebug || pargs.r_opt == oDebugAll)
-        parse_debug++;
-      else if (pargs.r_opt == oOptions)
-        { /* yes there is one, so we do not try the default one, but
-	     read the option file when it is encountered at the
-	     commandline */
-          default_config = 0;
-	}
-	else if (pargs.r_opt == oNoOptions)
-          default_config = 0; /* --no-options */
-	else if (pargs.r_opt == oHomedir)
-          gnupg_set_homedir (pargs.r.ret_str);
-	else if (pargs.r_opt == oDebugQuickRandom)
-          {
-            gcry_control (GCRYCTL_ENABLE_QUICK_RANDOM, 0);
-          }
+      switch (pargs.r_opt)
+        {
+        case oDebug:
+        case oDebugAll:
+          debug_argparser++;
+          break;
 
+        case oHomedir:
+          gnupg_set_homedir (pargs.r.ret_str);
+          break;
+
+        case oDebugQuickRandom:
+          gcry_control (GCRYCTL_ENABLE_QUICK_RANDOM, 0);
+          break;
+        }
     }
+  /* Reset the flags.  */
+  pargs.flags &= ~(ARGPARSE_FLAG_KEEP | ARGPARSE_FLAG_NOVERSION);
 
   /* Initialize the secure memory. */
   gcry_control (GCRYCTL_INIT_SECMEM, SECMEM_BUFFER_SIZE, 0);
   maybe_setuid = 0;
 
   /*
-     Now we are now working under our real uid
-  */
+   *  Now we are now working under our real uid
+   */
 
-  if (default_config)
-    configname = make_filename (gnupg_homedir (),
-                                GPG_AGENT_NAME EXTSEP_S "conf", NULL);
+  gnupg_set_confdir (GNUPG_CONFDIR_SYS, gnupg_sysconfdir ());
+  gnupg_set_confdir (GNUPG_CONFDIR_USER, gnupg_homedir ());
 
   argc = orig_argc;
   argv = orig_argv;
   pargs.argc = &argc;
   pargs.argv = &argv;
-  pargs.flags=  1;  /* do not remove the args */
- next_pass:
-  if (configname)
-    {
-      configlineno = 0;
-      configfp = fopen (configname, "r");
-      if (!configfp)
-        {
-          if (default_config)
-            {
-              if( parse_debug )
-                log_info (_("Note: no default option file '%s'\n"),
-                          configname );
-              /* Save the default conf file name so that
-                 reread_configuration is able to test whether the
-                 config file has been created in the meantime.  */
-              xfree (config_filename);
-              config_filename = configname;
-              configname = NULL;
-	    }
-          else
-            {
-              log_error (_("option file '%s': %s\n"),
-                         configname, strerror(errno) );
-              exit(2);
-	    }
-          xfree (configname);
-          configname = NULL;
-	}
-      if (parse_debug && configname )
-        log_info (_("reading options from '%s'\n"), configname );
-      default_config = 0;
-    }
+  /* We are re-using the struct, thus the reset flag.  We OR the
+   * flags so that the internal intialized flag won't be cleared. */
+  pargs.flags |= (ARGPARSE_FLAG_RESET
+                  | ARGPARSE_FLAG_KEEP
+                  | ARGPARSE_FLAG_SYS
+                  | ARGPARSE_FLAG_USER);
 
-  while (optfile_parse( configfp, configname, &configlineno, &pargs, opts) )
+  while (gnupg_argparser (&pargs, opts, GPG_AGENT_NAME EXTSEP_S "conf"))
     {
+      if (pargs.r_opt == ARGPARSE_CONFFILE)
+        {
+          if (debug_argparser)
+            log_info (_("reading options from '%s'\n"),
+                      pargs.r_type? pargs.r.ret_str: "[cmdline]");
+          if (pargs.r_type)
+            {
+              xfree (last_configname);
+              last_configname = xstrdup (pargs.r.ret_str);
+              configname = last_configname;
+            }
+          else
+            configname = NULL;
+          continue;
+        }
       if (parse_rereadable_options (&pargs, 0))
         continue; /* Already handled */
       switch (pargs.r_opt)
@@ -1185,18 +1188,8 @@ main (int argc, char **argv )
 
         case oDebugWait: debug_wait = pargs.r.ret_int; break;
 
-        case oOptions:
-          /* config files may not be nested (silently ignore them) */
-          if (!configfp)
-            {
-		xfree(configname);
-		configname = xstrdup(pargs.r.ret_str);
-		goto next_pass;
-	    }
-          break;
         case oNoGreeting: /* Dummy option.  */ break;
         case oNoVerbose: opt.verbose = 0; break;
-        case oNoOptions: break; /* no-options */
         case oHomedir: gnupg_set_homedir (pargs.r.ret_str); break;
         case oNoDetach: nodetach = 1; break;
         case oLogFile: logfile = pargs.r.ret_str; break;
@@ -1217,7 +1210,7 @@ main (int argc, char **argv )
 
         case oUseStandardSocket:
         case oNoUseStandardSocket:
-          obsolete_option (configname, configlineno, "use-standard-socket");
+          obsolete_option (configname, pargs.lineno, "use-standard-socket");
           break;
 
         case oFakedSystemTime:
@@ -1269,28 +1262,29 @@ main (int argc, char **argv )
           break;
 
         case oWriteEnvFile:
-          obsolete_option (configname, configlineno, "write-env-file");
+          obsolete_option (configname, pargs.lineno, "write-env-file");
           break;
 
-        default : pargs.err = configfp? 1:2; break;
+        default:
+          if (configname)
+            pargs.err = ARGPARSE_PRINT_WARNING;
+          else
+            pargs.err = ARGPARSE_PRINT_ERROR;
+          break;
 	}
     }
-  if (configfp)
+  gnupg_argparse (NULL, &pargs, NULL);  /* Release internal state.  */
+
+  if (!last_configname)
+    config_filename = make_filename (gnupg_homedir (),
+                                     GPG_AGENT_NAME EXTSEP_S "conf",
+                                     NULL);
+  else
     {
-      fclose( configfp );
-      configfp = NULL;
-      /* Keep a copy of the name so that it can be read on SIGHUP. */
-      if (config_filename != configname)
-        {
-          xfree (config_filename);
-          config_filename = configname;
-        }
-      configname = NULL;
-      goto next_pass;
+      config_filename = last_configname;
+      last_configname = NULL;
     }
 
-  xfree (configname);
-  configname = NULL;
   if (log_get_errorcount(0))
     exit(2);
 
@@ -1365,7 +1359,8 @@ main (int argc, char **argv )
     }
 
   /* Try to create missing directories. */
-  create_directories ();
+  if (!gpgconf_list)
+    create_directories ();
 
   if (debug_wait && pipe_server)
     {
@@ -1386,18 +1381,13 @@ main (int argc, char **argv )
     agent_exit (0);
   else if (gpgconf_list)
     {
-      char *filename;
       char *filename_esc;
 
       /* List options and default values in the GPG Conf format.  */
-      filename = make_filename (gnupg_homedir (),
-                                GPG_AGENT_NAME EXTSEP_S "conf", NULL);
-      filename_esc = percent_escape (filename, NULL);
-
+      filename_esc = percent_escape (config_filename, NULL);
       es_printf ("%s-%s.conf:%lu:\"%s\n",
                  GPGCONF_NAME, GPG_AGENT_NAME,
                  GC_OPT_FLAG_DEFAULT, filename_esc);
-      xfree (filename);
       xfree (filename_esc);
 
       es_printf ("verbose:%lu:\n"
@@ -1452,8 +1442,6 @@ main (int argc, char **argv )
                  GC_OPT_FLAG_NONE|GC_OPT_FLAG_RUNTIME);
       es_printf ("pinentry-timeout:%lu:0:\n",
                  GC_OPT_FLAG_DEFAULT|GC_OPT_FLAG_RUNTIME);
-      es_printf ("enable-extended-key-format:%lu:\n",
-                 GC_OPT_FLAG_NONE|GC_OPT_FLAG_RUNTIME);
       es_printf ("grab:%lu:\n",
                  GC_OPT_FLAG_NONE|GC_OPT_FLAG_RUNTIME);
 
@@ -1852,23 +1840,6 @@ agent_libgcrypt_progress_cb (void *data, const char *what, int printchar,
       break;
   if (dispatch && dispatch->cb)
     dispatch->cb (dispatch->ctrl, what, printchar, current, total);
-
-  /* Libgcrypt < 1.8 does not know about nPth and thus when it reads
-   * from /dev/random this will block the process.  To mitigate this
-   * problem we yield the thread when Libgcrypt tells us that it needs
-   * more entropy.  This way other threads have chance to run.  */
-#if GCRYPT_VERSION_NUMBER < 0x010800 /* 1.8.0 */
-  if (what && !strcmp (what, "need_entropy"))
-    {
-#if GPGRT_VERSION_NUMBER < 0x011900 /* 1.25 */
-      /* In older gpg-error versions gpgrt_yield is buggy for use with
-       * nPth and thus we need to resort to a sleep call.  */
-      npth_usleep (1000); /* 1ms */
-#else
-      gpgrt_yield ();
-#endif
-    }
-#endif
 }
 
 
@@ -2026,35 +1997,39 @@ static void
 reread_configuration (void)
 {
   ARGPARSE_ARGS pargs;
-  FILE *fp;
-  unsigned int configlineno = 0;
+  char *twopart;
   int dummy;
 
   if (!config_filename)
     return; /* No config file. */
 
-  fp = fopen (config_filename, "r");
-  if (!fp)
-    {
-      log_info (_("option file '%s': %s\n"),
-                config_filename, strerror(errno) );
-      return;
-    }
+  twopart = strconcat (GPG_AGENT_NAME EXTSEP_S "conf" PATHSEP_S,
+                       config_filename, NULL);
+  if (!twopart)
+    return;  /* Out of core.  */
 
   parse_rereadable_options (NULL, 1); /* Start from the default values. */
 
   memset (&pargs, 0, sizeof pargs);
   dummy = 0;
   pargs.argc = &dummy;
-  pargs.flags = 1;  /* do not remove the args */
-  while (optfile_parse (fp, config_filename, &configlineno, &pargs, opts) )
+  pargs.flags = (ARGPARSE_FLAG_KEEP
+                 |ARGPARSE_FLAG_SYS
+                 |ARGPARSE_FLAG_USER);
+  while (gnupg_argparser (&pargs, opts, twopart))
     {
-      if (pargs.r_opt < -1)
-        pargs.err = 1; /* Print a warning. */
+      if (pargs.r_opt == ARGPARSE_CONFFILE)
+        {
+          log_info (_("reading options from '%s'\n"),
+                    pargs.r_type? pargs.r.ret_str: "[cmdline]");
+        }
+      else if (pargs.r_opt < -1)
+        pargs.err = ARGPARSE_PRINT_WARNING;
       else /* Try to parse this option - ignore unchangeable ones. */
         parse_rereadable_options (&pargs, 1);
     }
-  fclose (fp);
+  gnupg_argparse (NULL, &pargs, NULL);  /* Release internal state.  */
+  xfree (twopart);
   finalize_rereadable_options ();
   set_debug ();
 }
@@ -2295,17 +2270,27 @@ create_private_keys_directory (const char *home)
   struct stat statbuf;
 
   fname = make_filename (home, GNUPG_PRIVATE_KEYS_DIR, NULL);
-  if (stat (fname, &statbuf) && errno == ENOENT)
+  if (gnupg_stat (fname, &statbuf) && errno == ENOENT)
     {
       if (gnupg_mkdir (fname, "-rwx"))
         log_error (_("can't create directory '%s': %s\n"),
                    fname, strerror (errno) );
       else if (!opt.quiet)
         log_info (_("directory '%s' created\n"), fname);
+
+      if (gnupg_chmod (fname, "-rwx"))
+        log_error (_("can't set permissions of '%s': %s\n"),
+                   fname, strerror (errno));
     }
-  if (gnupg_chmod (fname, "-rwx"))
-    log_error (_("can't set permissions of '%s': %s\n"),
-               fname, strerror (errno));
+  else
+    {
+      /* The file exists or another error.  Make sure we have sensible
+       * permissions.  We enforce rwx for user but keep existing group
+       * permissions.  Permissions for other are always cleared.  */
+      if (gnupg_chmod (fname, "-rwx...---"))
+        log_error (_("can't set permissions of '%s': %s\n"),
+                   fname, strerror (errno));
+    }
   xfree (fname);
 }
 
@@ -2324,7 +2309,7 @@ create_directories (void)
   char *home;
 
   home = make_filename (gnupg_homedir (), NULL);
-  if ( stat (home, &statbuf) )
+  if (gnupg_stat (home, &statbuf))
     {
       if (errno == ENOENT)
         {
@@ -2412,7 +2397,7 @@ handle_tick (void)
   /* Check whether the homedir is still available.  */
   if (!shutdown_pending
       && (!have_homedir_inotify || !reliable_homedir_inotify)
-      && stat (gnupg_homedir (), &statbuf) && errno == ENOENT)
+      && gnupg_stat (gnupg_homedir (), &statbuf) && errno == ENOENT)
     {
       shutdown_pending = 1;
       log_info ("homedir has been removed - shutting down\n");
@@ -2618,7 +2603,7 @@ putty_message_proc (HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
   if (!data)
     goto leave;
 
-  /* log_printhex ("request:", data, 20); */
+  /* log_printhex (data, 20, "request:"); */
 
   ctrl = xtrycalloc (1, sizeof *ctrl);
   if (!ctrl)
@@ -2639,7 +2624,7 @@ putty_message_proc (HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
   if (!serve_mmapped_ssh_request (ctrl, data, PUTTY_IPC_MAXLEN))
     ret = 1; /* Valid ssh message has been constructed.  */
   agent_deinit_default_ctrl (ctrl);
-  /* log_printhex ("  reply:", data, 20); */
+  /* log_printhex (data, 20, "  reply:"); */
 
  leave:
   xfree (ctrl);

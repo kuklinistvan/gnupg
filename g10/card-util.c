@@ -192,46 +192,6 @@ change_pin (int unblock_v2, int allow_admin)
   agent_release_card_info (&info);
 }
 
-static const char *
-get_manufacturer (unsigned int no)
-{
-  /* Note:  Make sure that there is no colon or linefeed in the string. */
-  switch (no)
-    {
-    case 0x0001: return "PPC Card Systems";
-    case 0x0002: return "Prism";
-    case 0x0003: return "OpenFortress";
-    case 0x0004: return "Wewid";
-    case 0x0005: return "ZeitControl";
-    case 0x0006: return "Yubico";
-    case 0x0007: return "OpenKMS";
-    case 0x0008: return "LogoEmail";
-    case 0x0009: return "Fidesmo";
-    case 0x000A: return "Dangerous Things";
-    case 0x000B: return "Feitian Technologies";
-
-    case 0x002A: return "Magrathea";
-    case 0x0042: return "GnuPG e.V.";
-
-    case 0x1337: return "Warsaw Hackerspace";
-    case 0x2342: return "warpzone"; /* hackerspace Muenster.  */
-    case 0x4354: return "Confidential Technologies";   /* cotech.de */
-    case 0x5443: return "TIF-IT e.V.";
-    case 0x63AF: return "Trustica";
-    case 0xBA53: return "c-base e.V.";
-    case 0xBD0E: return "Paranoidlabs";
-    case 0xF517: return "FSIJ";
-    case 0xF5EC: return "F-Secure";
-
-      /* 0x0000 and 0xFFFF are defined as test cards per spec,
-         0xFF00 to 0xFFFE are assigned for use with randomly created
-         serial numbers.  */
-    case 0x0000:
-    case 0xffff: return "test card";
-    default: return (no & 0xff00) == 0xff00? "unmanaged S/N range":"unknown";
-    }
-}
-
 
 static void
 print_sha1_fpr (estream_t fp, const unsigned char *fpr)
@@ -393,6 +353,7 @@ current_card_status (ctrl_t ctrl, estream_t fp,
   unsigned int uval;
   const unsigned char *thefpr;
   int i;
+  char *pesc;
 
   if (serialno && serialnobuflen)
     *serialno = 0;
@@ -479,7 +440,10 @@ current_card_status (ctrl_t ctrl, estream_t fp,
     {
       es_fprintf (fp, "version:%.4s:\n", info.serialno+12);
       uval = xtoi_2(info.serialno+16)*256 + xtoi_2 (info.serialno+18);
-      es_fprintf (fp, "vendor:%04x:%s:\n", uval, get_manufacturer (uval));
+      pesc = (info.manufacturer_name
+              ? percent_escape (info.manufacturer_name, NULL) : NULL);
+      es_fprintf (fp, "vendor:%04x:%s:\n", uval, pesc? pesc:"");
+      xfree (pesc);
       es_fprintf (fp, "serial:%.8s:\n", info.serialno+20);
 
       print_isoname (fp, "Name of cardholder: ", "name", info.disp_name);
@@ -572,8 +536,7 @@ current_card_status (ctrl_t ctrl, estream_t fp,
                    info.serialno[14] == '0'?"":info.serialno+14,
                    info.serialno[15]);
       tty_fprintf (fp, "Manufacturer .....: %s\n",
-                   get_manufacturer (xtoi_2(info.serialno+16)*256
-                                     + xtoi_2 (info.serialno+18)));
+                   info.manufacturer_name? info.manufacturer_name : "?");
       tty_fprintf (fp, "Serial number ....: %.8s\n", info.serialno+20);
 
       print_isoname (fp, "Name of cardholder: ", "name", info.disp_name);
@@ -1871,8 +1834,13 @@ send_apdu (const char *hexapdu, const char *desc, unsigned int ignore)
   if (err)
     tty_printf ("sending card command %s failed: %s\n", desc,
                 gpg_strerror (err));
-  else if (!hexapdu || !strcmp (hexapdu, "undefined"))
-    ;
+  else if (!hexapdu
+           || !strcmp (hexapdu, "undefined")
+           || !strcmp (hexapdu, "reset-keep-lock")
+           || !strcmp (hexapdu, "lock")
+           || !strcmp (hexapdu, "trylock")
+           || !strcmp (hexapdu, "unlock"))
+    ; /* Ignore pseudo APDUs.  */
   else if (ignore == 0xffff)
     ; /* Ignore all status words.  */
   else if (sw != 0x9000)
@@ -1901,6 +1869,7 @@ factory_reset (void)
   char *answer = NULL;
   int termstate = 0;
   int i;
+  int locked = 0;
 
   /*  The code below basically does the same what this
       gpg-connect-agent script does:
@@ -1962,8 +1931,14 @@ factory_reset (void)
         goto leave;
 
       /* We need to select a card application before we can send APDUs
-         to the card without scdaemon doing anything on its own.  */
-      err = send_apdu (NULL, "RESET", 0);
+         to the card without scdaemon doing anything on its own.  We
+         then lock the connection so that other tools (e.g. Kleopatra)
+         don't try a new select.  */
+      err = send_apdu ("lock", "locking connection ", 0);
+      if (err)
+        goto leave;
+      locked = 1;
+      err = send_apdu ("reset-keep-lock", "reset", 0);
       if (err)
         goto leave;
       err = send_apdu ("undefined", "dummy select ", 0);
@@ -2005,7 +1980,7 @@ factory_reset (void)
     goto leave;
 
   /* Finally we reset the card reader once more.  */
-  err = send_apdu (NULL, "RESET", 0);
+  err = send_apdu ("reset-keep-lock", "reset", 0);
 
   /* Then, connect the card again.  */
   if (!err)
@@ -2018,6 +1993,8 @@ factory_reset (void)
     }
 
  leave:
+  if (locked)
+    send_apdu ("unlock", "unlocking connection ", 0);
   xfree (answer);
   agent_release_card_info (&info);
 }

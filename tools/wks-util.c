@@ -843,13 +843,13 @@ wks_compute_hu_fname (char **r_fname, const char *addrspec)
 
   /* Try to create missing directories below opt.directory.  */
   fname = make_filename_try (opt.directory, domain, NULL);
-  if (fname && stat (fname, &sb)
+  if (fname && gnupg_stat (fname, &sb)
       && gpg_err_code_from_syserror () == GPG_ERR_ENOENT)
     if (!gnupg_mkdir (fname, "-rwxr--r--") && opt.verbose)
       log_info ("directory '%s' created\n", fname);
   xfree (fname);
   fname = make_filename_try (opt.directory, domain, "hu", NULL);
-  if (fname && stat (fname, &sb)
+  if (fname && gnupg_stat (fname, &sb)
       && gpg_err_code_from_syserror () == GPG_ERR_ENOENT)
     if (!gnupg_mkdir (fname, "-rwxr--r--") && opt.verbose)
       log_info ("directory '%s' created\n", fname);
@@ -873,6 +873,7 @@ wks_compute_hu_fname (char **r_fname, const char *addrspec)
 static gpg_error_t
 ensure_policy_file (const char *addrspec)
 {
+  gpg_err_code_t ec;
   gpg_error_t err;
   const char *domain;
   char *fname;
@@ -890,12 +891,12 @@ ensure_policy_file (const char *addrspec)
     goto leave;
 
   /* First a quick check whether it already exists.  */
-  if (!access (fname, F_OK))
+  if (!(ec = gnupg_access (fname, F_OK)))
     {
       err = 0; /* File already exists.  */
       goto leave;
     }
-  err = gpg_error_from_syserror ();
+  err = gpg_error (ec);
   if (gpg_err_code (err) == GPG_ERR_ENOENT)
     err = 0;
   else
@@ -911,7 +912,7 @@ ensure_policy_file (const char *addrspec)
     {
       err = gpg_error_from_syserror ();
       if (gpg_err_code (err) == GPG_ERR_EEXIST)
-        err = 0; /* Was created between the access() and fopen().  */
+        err = 0; /* Was created between the gnupg_access() and es_fopen().  */
       else
         log_error ("domain %s: error creating '%s': %s\n",
                    domain, fname, gpg_strerror (err));
@@ -930,7 +931,7 @@ ensure_policy_file (const char *addrspec)
     log_info ("policy file '%s' created\n", fname);
 
   /* Make sure the policy file world readable.  */
-  if (gnupg_chmod (fname, "-rw-rw-r--"))
+  if (gnupg_chmod (fname, "-rw-r--r--"))
     {
       err = gpg_error_from_syserror ();
       log_error ("can't set permissions of '%s': %s\n",
@@ -1131,7 +1132,7 @@ wks_cmd_install_key (const char *fname, const char *userid)
     }
 
   /* Make sure it is world readable.  */
-  if (gnupg_chmod (huname, "-rwxr--r--"))
+  if (gnupg_chmod (huname, "-rw-r--r--"))
     log_error ("can't set permissions of '%s': %s\n",
                huname, gpg_strerror (gpg_err_code_from_syserror()));
 

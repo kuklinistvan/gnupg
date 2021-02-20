@@ -92,7 +92,7 @@ get_session_key (ctrl_t ctrl, PKT_pubkey_enc * k, DEK * dek)
         {
           /* Check compliance.  */
           if (! gnupg_pk_is_allowed (opt.compliance, PK_USE_DECRYPTION,
-                                     sk->pubkey_algo,
+                                     sk->pubkey_algo, 0,
                                      sk->pkey, nbits_from_pk (sk), NULL))
             {
               log_info (_("key %s is not suitable for decryption"
@@ -133,7 +133,7 @@ get_session_key (ctrl_t ctrl, PKT_pubkey_enc * k, DEK * dek)
 
           /* Check compliance.  */
           if (! gnupg_pk_is_allowed (opt.compliance, PK_USE_DECRYPTION,
-                                     sk->pubkey_algo,
+                                     sk->pubkey_algo, 0,
                                      sk->pkey, nbits_from_pk (sk), NULL))
             {
               log_info (_("key %s is not suitable for decryption"
@@ -259,7 +259,7 @@ get_it (ctrl_t ctrl,
    * CSUM
    */
   if (DBG_CRYPTO)
-    log_printhex ("DEK frame:", frame, nframe);
+    log_printhex (frame, nframe, "DEK frame:");
   n = 0;
 
   if (sk->pubkey_algo == PUBKEY_ALGO_ECDH)
@@ -288,10 +288,7 @@ get_it (ctrl_t ctrl,
         goto leave;
 
       /* Now the frame are the bytes decrypted but padded session key.  */
-
-      /* Allow double padding for the benefit of DEK size concealment.
-         Higher than this is wasteful. */
-      if (!nframe || frame[nframe-1] > 8*2 || nframe <= 8
+      if (!nframe || nframe <= 8
           || frame[nframe-1] > nframe)
         {
           err = gpg_error (GPG_ERR_WRONG_SECKEY);
@@ -375,7 +372,7 @@ get_it (ctrl_t ctrl,
   if (DBG_CLOCK)
     log_clock ("decryption ready");
   if (DBG_CRYPTO)
-    log_printhex ("DEK is:", dek->key, dek->keylen);
+    log_printhex (dek->key, dek->keylen, "DEK is:");
 
   /* Check that the algo is in the preferences and whether it has
    * expired.  Also print a status line with the key's fingerprint.  */

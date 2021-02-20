@@ -640,3 +640,61 @@ pubkey_algo_string (gcry_sexp_t s_pkey, enum gcry_pk_algos *r_algoid)
   xfree (algoname);
   return result;
 }
+
+
+/* Map a pubkey algo id from gcrypt to a string.  This is the same as
+ * gcry_pk_algo_name but makes sure that the ECC algo identifiers are
+ * not all mapped to "ECC".  */
+const char *
+pubkey_algo_to_string (int algo)
+{
+  if (algo == GCRY_PK_ECDSA)
+    return "ECDSA";
+  else if (algo == GCRY_PK_ECDH)
+    return "ECDH";
+  else if (algo == GCRY_PK_EDDSA)
+    return "EdDSA";
+  else
+    return gcry_pk_algo_name (algo);
+}
+
+
+/* Map a hash algo id from gcrypt to a string.  This is the same as
+ * gcry_md_algo_name but the returned string is lower case, as
+ * expected by libksba and it avoids some overhead.  */
+const char *
+hash_algo_to_string (int algo)
+{
+  static const struct
+  {
+    const char *name;
+    int algo;
+  } hashnames[] =
+      {
+       { "sha256",    GCRY_MD_SHA256 },
+       { "sha512",    GCRY_MD_SHA512 },
+       { "sha1",      GCRY_MD_SHA1 },
+       { "sha384",    GCRY_MD_SHA384 },
+       { "sha224",    GCRY_MD_SHA224 },
+       { "sha3-224",  GCRY_MD_SHA3_224 },
+       { "sha3-256",  GCRY_MD_SHA3_256 },
+       { "sha3-384",  GCRY_MD_SHA3_384 },
+       { "sha3-512",  GCRY_MD_SHA3_512 },
+       { "ripemd160", GCRY_MD_RMD160 },
+       { "rmd160",    GCRY_MD_RMD160 },
+       { "md2",       GCRY_MD_MD2 },
+       { "md4",       GCRY_MD_MD4 },
+       { "tiger",     GCRY_MD_TIGER },
+       { "haval",     GCRY_MD_HAVAL },
+#if GCRYPT_VERSION_NUMBER >= 0x010900
+       { "sm3",       GCRY_MD_SM3 },
+#endif
+       { "md5",       GCRY_MD_MD5 }
+      };
+  int i;
+
+  for (i=0; i < DIM (hashnames); i++)
+    if (algo == hashnames[i].algo)
+      return hashnames[i].name;
+  return "?";
+}

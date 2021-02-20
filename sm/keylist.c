@@ -361,7 +361,10 @@ print_compliance_flags (ksba_cert_t cert, int algo, unsigned int nbits,
 {
   int hashalgo;
 
-  if (gnupg_pk_is_compliant (CO_DE_VS, algo, NULL, nbits, NULL))
+  /* Note that we do not need to test for PK_ALGO_FLAG_RSAPSS because
+   * that is not a property of the key but one of the created
+   * signature.  */
+  if (gnupg_pk_is_compliant (CO_DE_VS, algo, 0, NULL, nbits, NULL))
     {
       hashalgo = gcry_md_map_name (ksba_cert_get_digest_algo (cert));
       if (gnupg_digest_is_compliant (CO_DE_VS, hashalgo))
@@ -556,6 +559,10 @@ list_cert_colon (ctrl_t ctrl, ksba_cert_t cert, unsigned int validity,
   es_putc ('\n', fp);
   xfree (fpr); fpr = NULL; chain_id = NULL;
   xfree (chain_id_buffer); chain_id_buffer = NULL;
+  /* SHA256 FPR record */
+  fpr = gpgsm_get_fingerprint_hexstring (cert, GCRY_MD_SHA256);
+  es_fprintf (fp, "fp2:::::::::%s::::\n", fpr);
+  xfree (fpr); fpr = NULL;
 
   /* Always print the keygrip.  */
   if ( (p = gpgsm_get_keygrip_hexstring (cert)))
@@ -738,8 +745,11 @@ list_cert_raw (ctrl_t ctrl, KEYDB_HANDLE hd,
   sexp = ksba_cert_get_serial (cert);
   es_fputs ("          S/N: ", fp);
   gpgsm_print_serial (fp, sexp);
-  ksba_free (sexp);
   es_putc ('\n', fp);
+  es_fputs ("        (dec): ", fp);
+  gpgsm_print_serial_decimal (fp, sexp);
+  es_putc ('\n', fp);
+  ksba_free (sexp);
 
   dn = ksba_cert_get_issuer (cert, 0);
   es_fputs ("       Issuer: ", fp);
@@ -766,6 +776,10 @@ list_cert_raw (ctrl_t ctrl, KEYDB_HANDLE hd,
       ksba_free (dn);
       es_putc ('\n', fp);
     }
+
+  dn = gpgsm_get_fingerprint_string (cert, GCRY_MD_SHA256);
+  es_fprintf (fp, "     sha2_fpr: %s\n", dn?dn:"error");
+  xfree (dn);
 
   dn = gpgsm_get_fingerprint_string (cert, 0);
   es_fprintf (fp, "     sha1_fpr: %s\n", dn?dn:"error");
@@ -1118,8 +1132,11 @@ list_cert_std (ctrl_t ctrl, ksba_cert_t cert, estream_t fp, int have_secret,
   sexp = ksba_cert_get_serial (cert);
   es_fputs ("          S/N: ", fp);
   gpgsm_print_serial (fp, sexp);
-  ksba_free (sexp);
   es_putc ('\n', fp);
+  es_fputs ("        (dec): ", fp);
+  gpgsm_print_serial_decimal (fp, sexp);
+  es_putc ('\n', fp);
+  ksba_free (sexp);
 
   dn = ksba_cert_get_issuer (cert, 0);
   es_fputs ("       Issuer: ", fp);
@@ -1284,6 +1301,10 @@ list_cert_std (ctrl_t ctrl, ksba_cert_t cert, estream_t fp, int have_secret,
 
   dn = gpgsm_get_fingerprint_string (cert, 0);
   es_fprintf (fp, "  fingerprint: %s\n", dn?dn:"error");
+  xfree (dn);
+
+  dn = gpgsm_get_fingerprint_string (cert, GCRY_MD_SHA256);
+  es_fprintf (fp, "     sha2 fpr: %s\n", dn?dn:"error");
   xfree (dn);
 
   if (opt.with_keygrip)
@@ -1607,7 +1628,7 @@ list_external_keys (ctrl_t ctrl, strlist_t names, estream_t fp, int raw_mode)
   parm.with_chain = ctrl->with_chain;
   parm.raw_mode  = raw_mode;
 
-  rc = gpgsm_dirmngr_lookup (ctrl, names, 0, list_external_cb, &parm);
+  rc = gpgsm_dirmngr_lookup (ctrl, names, NULL, 0, list_external_cb, &parm);
   if (gpg_err_code (rc) == GPG_ERR_EOF || rc == -1
       || gpg_err_code (rc) == GPG_ERR_NOT_FOUND)
     rc = 0; /* "Not found" is not an error here. */

@@ -125,7 +125,11 @@ struct
      passphrase change.  */
   int enable_passphrase_history;
 
-  /* If set the extended key format is used for new keys.  */
+  /* If set the extended key format is used for new keys.  Note that
+   * this may have the value 2 in which case
+   * --disable-extended-key-format won't have any effect and thus
+   * effectivley locking it.  This is required to support existing
+   * profiles which lock the use of --enable-extended-key-format. */
   int enable_extended_key_format;
 
   int running_detached; /* We are running detached from the tty. */
@@ -409,7 +413,8 @@ void start_command_handler_ssh (ctrl_t, gnupg_fd_t);
 gpg_error_t agent_modify_description (const char *in, const char *comment,
                                       const gcry_sexp_t key, char **result);
 int agent_write_private_key (const unsigned char *grip,
-                             const void *buffer, size_t length, int force);
+                             const void *buffer, size_t length, int force,
+                             time_t timestamp);
 gpg_error_t agent_key_from_file (ctrl_t ctrl,
                                  const char *cache_nonce,
                                  const char *desc_text,
@@ -447,7 +452,8 @@ gpg_error_t agent_askpin (ctrl_t ctrl,
 int agent_get_passphrase (ctrl_t ctrl, char **retpass,
                           const char *desc, const char *prompt,
                           const char *errtext, int with_qualitybar,
-			  const char *keyinfo, cache_mode_t cache_mode);
+			  const char *keyinfo, cache_mode_t cache_mode,
+                          struct pin_entry_info_s *pininfo);
 int agent_get_confirmation (ctrl_t ctrl, const char *desc, const char *ok,
 			    const char *notokay, int with_cancel);
 int agent_show_message (ctrl_t ctrl, const char *desc, const char *ok_btn);
@@ -484,11 +490,11 @@ int agent_pkdecrypt (ctrl_t ctrl, const char *desc_text,
                      membuf_t *outbuf, int *r_padding);
 
 /*-- genkey.c --*/
-int check_passphrase_constraints (ctrl_t ctrl, const char *pw,
+int check_passphrase_constraints (ctrl_t ctrl, const char *pw, int no_empty,
 				  char **failed_constraint);
 gpg_error_t agent_ask_new_passphrase (ctrl_t ctrl, const char *prompt,
                                       char **r_passphrase);
-int agent_genkey (ctrl_t ctrl, const char *cache_nonce,
+int agent_genkey (ctrl_t ctrl, const char *cache_nonce, time_t timestamp,
                   const char *keyparam, size_t keyparmlen,
                   int no_protection, const char *override_passphrase,
                   int preset, membuf_t *outbuf);
@@ -539,10 +545,12 @@ void agent_reload_trustlist (void);
 /*-- divert-scd.c --*/
 int divert_pksign (ctrl_t ctrl, const char *desc_text,
                    const unsigned char *digest, size_t digestlen, int algo,
+                   const unsigned char *grip,
                    const unsigned char *shadow_info, unsigned char **r_sig,
                    size_t *r_siglen);
 int divert_pkdecrypt (ctrl_t ctrl, const char *desc_text,
                       const unsigned char *cipher,
+                      const unsigned char *grip,
                       const unsigned char *shadow_info,
                       char **r_buf, size_t *r_len, int *r_padding);
 int divert_generic_cmd (ctrl_t ctrl,

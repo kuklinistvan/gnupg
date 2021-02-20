@@ -409,9 +409,14 @@ change it.
 @itemx --disable-crl-checks
 @opindex enable-crl-checks
 @opindex disable-crl-checks
-By default the @acronym{CRL} checks are enabled and the DirMngr is used
-to check for revoked certificates.  The disable option is most useful
-with an off-line network connection to suppress this check.
+By default the @acronym{CRL} checks are enabled and the DirMngr is
+used to check for revoked certificates.  The disable option is most
+useful with an off-line network connection to suppress this check and
+also to avoid that new certificates introduce a web bug by including a
+certificate specific CRL DP.  The disable option also disables an
+issuer certificate lookup via the authorityInfoAccess property of the
+certificate; the @option{--enable-issuer-key-retrieve} can be used
+to make use of that property anyway.
 
 @item  --enable-trusted-cert-crl-check
 @itemx --disable-trusted-cert-crl-check
@@ -437,6 +442,14 @@ is useful to make sure that a fresh CRL is available for certificates
 hold in the keybox.  The suggested way of doing this is by using it
 along with the option @option{--with-validation} for a key listing
 command.  This option should not be used in a configuration file.
+
+@item --enable-issuer-based-crl-check
+@opindex enable-issuer-based-crl-check
+Run a CRL check even for certificates which do not have any CRL
+distribution point.  This requires that a suitable LDAP server has
+been configured in Dirmngr and that the CRL can be found using the
+issuer.  This option reverts to what GnuPG did up to version 2.2.20.
+This option is in general not useful.
 
 @item  --enable-ocsp
 @itemx --disable-ocsp
@@ -1224,9 +1237,9 @@ last file descriptor passed to the application.
 @xref{fun-assuan_sendfd, ,the assuan_sendfd function,assuan,the Libassuan
 manual}, on how to do descriptor passing.
 
-The @code{--armor} option may be used to advice the server that the
-input data is in @acronym{PEM} format, @code{--base64} advices that a
-raw base-64 encoding is used, @code{--binary} advices of raw binary
+The @code{--armor} option may be used to advise the server that the
+input data is in @acronym{PEM} format, @code{--base64} advises that a
+raw base-64 encoding is used, @code{--binary} advises of raw binary
 input (@acronym{BER}).  If none of these options is used, the server
 tries to figure out the used encoding, but this may not always be
 correct.

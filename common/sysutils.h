@@ -46,6 +46,22 @@ typedef int gnupg_fd_t;
 #define FD2INT(h) (h)
 #endif
 
+#ifdef HAVE_STAT
+# include <sys/stat.h>
+#endif
+
+struct gnupg_dir_s;
+typedef struct gnupg_dir_s *gnupg_dir_t;
+struct gnupg_dirent_s
+{
+  /* We don't have a d_ino because that can't be used on Windows
+   * anyway.  D_NAME is a pointer into the gnupg_dir_s which has a
+   * static buffer or allocates sufficient space as needed.  This is
+   * only valid after gnupg_readdir. */
+  char *d_name;
+};
+typedef struct gnupg_dirent_s *gnupg_dirent_t;
+
 
 void trap_unaligned (void);
 int  disable_core_dumps (void);
@@ -72,8 +88,17 @@ char *gnupg_mkdtemp (char *template);
 int  gnupg_setenv (const char *name, const char *value, int overwrite);
 int  gnupg_unsetenv (const char *name);
 char *gnupg_getcwd (void);
+gpg_err_code_t gnupg_access (const char *name, int mode);
+#ifdef HAVE_STAT
+int gnupg_stat (const char *name, struct stat *statbuf);
+#endif /*HAVE_STAT*/
+int gnupg_open (const char *name, int flags, unsigned int mode);
+gnupg_dir_t gnupg_opendir (const char *name);
+gnupg_dirent_t gnupg_readdir (gnupg_dir_t gdir);
+int gnupg_closedir (gnupg_dir_t gdir);
 char *gnupg_get_socket_name (int fd);
 int gnupg_fd_valid (int fd);
+char *gnupg_getusername (void);
 
 gpg_error_t gnupg_inotify_watch_delete_self (int *r_fd, const char *fname);
 gpg_error_t gnupg_inotify_watch_socket (int *r_fd, const char *socket_name);
@@ -81,6 +106,7 @@ int gnupg_inotify_has_name (int fd, const char *name);
 
 
 #ifdef HAVE_W32_SYSTEM
+void gnupg_w32_set_errno (int ec);
 void *w32_get_user_sid (void);
 
 #include "../common/w32help.h"

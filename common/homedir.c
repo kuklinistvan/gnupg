@@ -61,6 +61,7 @@
 
 #include "util.h"
 #include "sysutils.h"
+#include "i18n.h"
 #include "zb32.h"
 
 /* The GnuPG homedir.  This is only accessed by the functions
@@ -117,14 +118,16 @@ w32_try_mkdir (const char *dir)
 #endif
 
 
-/* This is a helper function to load a Windows function from either of
-   one DLLs. */
+/* This is a helper function to load and call a Windows function from
+ * either of one DLLs.  On success an UTF-8 file name is returned.
+ * ERRNO is _not_ set on error.  */
 #ifdef HAVE_W32_SYSTEM
-static HRESULT
-w32_shgetfolderpath (HWND a, int b, HANDLE c, DWORD d, LPSTR e)
+static char *
+w32_shgetfolderpath (HWND a, int b, HANDLE c, DWORD d)
 {
   static int initialized;
-  static HRESULT (WINAPI * func)(HWND,int,HANDLE,DWORD,LPSTR);
+  static HRESULT (WINAPI * func)(HWND,int,HANDLE,DWORD,LPWSTR);
+  wchar_t wfname[MAX_PATH];
 
   if (!initialized)
     {
@@ -139,7 +142,7 @@ w32_shgetfolderpath (HWND a, int b, HANDLE c, DWORD d, LPSTR e)
           handle = dlopen (dllnames[i], RTLD_LAZY);
           if (handle)
             {
-              func = dlsym (handle, "SHGetFolderPathA");
+              func = dlsym (handle, "SHGetFolderPathW");
               if (!func)
                 {
                   dlclose (handle);
@@ -149,10 +152,10 @@ w32_shgetfolderpath (HWND a, int b, HANDLE c, DWORD d, LPSTR e)
         }
     }
 
-  if (func)
-    return func (a,b,c,d,e);
+  if (func && func (a,b,c,d,wfname) >= 0)
+    return wchar_to_utf8 (wfname);
   else
-    return -1;
+    return NULL;
 }
 #endif /*HAVE_W32_SYSTEM*/
 
@@ -248,25 +251,17 @@ standard_homedir (void)
         }
       else
         {
-          char path[MAX_PATH];
+          char *path;
 
-          /* It might be better to use LOCAL_APPDATA because this is
-             defined as "non roaming" and thus more likely to be kept
-             locally.  For private keys this is desired.  However,
-             given that many users copy private keys anyway forth and
-             back, using a system roaming services might be better
-             than to let them do it manually.  A security conscious
-             user will anyway use the registry entry to have better
-             control.  */
-          if (w32_shgetfolderpath (NULL, CSIDL_APPDATA|CSIDL_FLAG_CREATE,
-                                   NULL, 0, path) >= 0)
+          path = w32_shgetfolderpath (NULL, CSIDL_APPDATA|CSIDL_FLAG_CREATE,
+                                      NULL, 0);
+          if (path)
             {
-              char *tmp = xmalloc (strlen (path) + 6 +1);
-              strcpy (stpcpy (tmp, path), "\\gnupg");
-              dir = tmp;
+              dir = xstrconcat (path, "\\gnupg", NULL);
+              xfree (path);
 
               /* Try to create the directory if it does not yet exists.  */
-              if (access (dir, F_OK))
+              if (gnupg_access (dir, F_OK))
                 w32_try_mkdir (dir);
             }
           else
@@ -360,10 +355,10 @@ check_portable_app (const char *dir)
   char *fname;
 
   fname = xstrconcat (dir, DIRSEP_S "gpgconf.exe", NULL);
-  if (!access (fname, F_OK))
+  if (!gnupg_access (fname, F_OK))
     {
       strcpy (fname + strlen (fname) - 3, "ctl");
-      if (!access (fname, F_OK))
+      if (!gnupg_access (fname, F_OK))
         {
           /* gpgconf.ctl file found.  Record this fact.  */
           w32_portable_app = 1;
@@ -440,7 +435,7 @@ w32_commondir (void)
   if (!dir)
     {
       const char *rdir;
-      char path[MAX_PATH];
+      char *path;
 
       /* Make sure that w32_rootdir has been called so that we are
          able to check the portable application flag.  The common dir
@@ -450,19 +445,17 @@ w32_commondir (void)
       if (w32_portable_app)
         return rdir;
 
-      if (w32_shgetfolderpath (NULL, CSIDL_COMMON_APPDATA,
-                               NULL, 0, path) >= 0)
+      path = w32_shgetfolderpath (NULL, CSIDL_COMMON_APPDATA, NULL, 0);
+      if (path)
         {
-          char *tmp = xmalloc (strlen (path) + 4 +1);
-          strcpy (stpcpy (tmp, path), "\\GNU");
-          dir = tmp;
+          dir = xstrconcat (path, "\\GNU", NULL);
           /* No auto create of the directory.  Either the installer or
-             the admin has to create these directories.  */
+           * the admin has to create these directories.  */
         }
       else
         {
-          /* Ooops: Not defined - probably an old Windows version.
-             Use the installation directory instead.  */
+          /* Folder not found or defined - probably an old Windows
+           * version.  Use the installation directory instead.  */
           dir = xstrdup (rdir);
         }
     }
@@ -494,6 +487,38 @@ gnupg_set_homedir (const char *newdir)
   xfree (the_gnupg_homedir);
   the_gnupg_homedir = make_absfilename (newdir, NULL);;
   xfree (tmp);
+}
+
+
+/* Create the homedir directory only if the supplied directory name is
+ * the same as the default one.  This way we avoid to create arbitrary
+ * directories when a non-default home directory is used.  To cope
+ * with HOME, we do compare only the suffix if we see that the default
+ * homedir does start with a tilde.  If the mkdir fails the function
+ * terminates the process.  If QUIET is set not diagnostic is printed
+ * on homedir creation.  */
+void
+gnupg_maybe_make_homedir (const char *fname, int quiet)
+{
+  const char *defhome = standard_homedir ();
+
+  if (
+#ifdef HAVE_W32_SYSTEM
+      ( !compare_filenames (fname, defhome) )
+#else
+      ( *defhome == '~'
+        && (strlen(fname) >= strlen (defhome+1)
+            && !strcmp(fname+strlen(fname)-strlen(defhome+1), defhome+1 ) ))
+      || (*defhome != '~'  && !compare_filenames( fname, defhome ) )
+#endif
+      )
+    {
+      if (gnupg_mkdir (fname, "-rwx"))
+        log_fatal ( _("can't create directory '%s': %s\n"),
+                    fname, strerror(errno) );
+      else if (!quiet )
+        log_info ( _("directory '%s' created\n"), fname );
+    }
 }
 
 
@@ -903,7 +928,7 @@ gnupg_cachedir (void)
         }
       else
         {
-          char path[MAX_PATH];
+          char *path;
           const char *s1[] = { "GNU", "cache", "gnupg", NULL };
           int s1_len;
           const char **comp;
@@ -912,8 +937,10 @@ gnupg_cachedir (void)
           for (comp = s1; *comp; comp++)
             s1_len += 1 + strlen (*comp);
 
-          if (w32_shgetfolderpath (NULL, CSIDL_LOCAL_APPDATA|CSIDL_FLAG_CREATE,
-                                   NULL, 0, path) >= 0)
+          path = w32_shgetfolderpath (NULL,
+                                      CSIDL_LOCAL_APPDATA|CSIDL_FLAG_CREATE,
+                                      NULL, 0);
+          if (path)
             {
               char *tmp = xmalloc (strlen (path) + s1_len + 1);
               char *p;
@@ -924,11 +951,12 @@ gnupg_cachedir (void)
                   p = stpcpy (p, "\\");
                   p = stpcpy (p, *comp);
 
-                  if (access (tmp, F_OK))
+                  if (gnupg_access (tmp, F_OK))
                     w32_try_mkdir (tmp);
                 }
 
               dir = tmp;
+              xfree (path);
             }
           else
             {
@@ -976,6 +1004,8 @@ get_default_pinentry_name (int reset)
     /* Try Gpg4win directory (with bin and without.) */
     { w32_rootdir, "\\..\\Gpg4win\\bin\\pinentry.exe" },
     { w32_rootdir, "\\..\\Gpg4win\\pinentry.exe" },
+    /* Try a pinentry in a dir above us */
+    { w32_rootdir, "\\..\\bin\\pinentry.exe" },
     /* Try old Gpgwin directory.  */
     { w32_rootdir, "\\..\\GNU\\GnuPG\\pinentry.exe" },
     /* Try a Pinentry from the common GNU dir.  */
@@ -1002,7 +1032,7 @@ get_default_pinentry_name (int reset)
           char *name2;
 
           name2 = xstrconcat (names[i].rfnc (), names[i].name, NULL);
-          if (!access (name2, F_OK))
+          if (!gnupg_access (name2, F_OK))
             {
               /* Use that pinentry.  */
               xfree (name);

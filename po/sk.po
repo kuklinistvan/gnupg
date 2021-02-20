@@ -96,6 +96,9 @@ msgstr ""
 #. the pinentry.  The %s is the actual error message, the
 #. two %d give the current and maximum number of tries.
 #. Do not translate the "SETERROR" keyword.
+#. TRANSLATORS: The string is appended to an error message in
+#. the pinentry.  The %s is the actual error message, the
+#. two %d give the current and maximum number of tries.
 #, c-format
 msgid "SETERROR %s (try %d of %d)"
 msgstr ""
@@ -427,16 +430,6 @@ msgstr ""
 #, c-format
 msgid "selected digest algorithm is invalid\n"
 msgstr "vybraný hashovací algoritmus je neplatný\n"
-
-#, fuzzy, c-format
-#| msgid "NOTE: no default option file `%s'\n"
-msgid "Note: no default option file '%s'\n"
-msgstr "POZNÁMKA: neexistuje implicitný súbor s možnosťami `%s'\n"
-
-#, fuzzy, c-format
-#| msgid "option file `%s': %s\n"
-msgid "option file '%s': %s\n"
-msgstr "súbor s možnosťami `%s': %s\n"
 
 #, fuzzy, c-format
 #| msgid "reading options from `%s'\n"
@@ -1076,9 +1069,25 @@ msgstr "konfliktné príkazy\n"
 msgid "invalid alias definition"
 msgstr "neplatný parameter pre import\n"
 
+msgid "permission error"
+msgstr ""
+
 #, fuzzy
 msgid "out of core"
 msgstr "nespracované"
+
+#, fuzzy
+msgid "invalid meta command"
+msgstr "konfliktné príkazy\n"
+
+#, fuzzy
+msgid "unknown meta command"
+msgstr "neznámy implicitný adresát `%s'\n"
+
+#, fuzzy
+#| msgid "unexpected data"
+msgid "unexpected meta command"
+msgstr "neočakávané dáta"
 
 #, fuzzy
 msgid "invalid option"
@@ -1109,12 +1118,22 @@ msgid "command \"%.50s\" is ambiguous\n"
 msgstr ""
 
 #, fuzzy, c-format
-msgid "out of core\n"
-msgstr "nespracované"
-
-#, fuzzy, c-format
 msgid "invalid option \"%.50s\"\n"
 msgstr "neplatný parameter pre import\n"
+
+#, fuzzy, c-format
+#| msgid "NOTE: no default option file `%s'\n"
+msgid "Note: no default option file '%s'\n"
+msgstr "POZNÁMKA: neexistuje implicitný súbor s možnosťami `%s'\n"
+
+#, fuzzy, c-format
+#| msgid "option file `%s': %s\n"
+msgid "option file '%s': %s\n"
+msgstr "súbor s možnosťami `%s': %s\n"
+
+#, c-format
+msgid "Note: ignoring option \"--%s\" due to global config\n"
+msgstr ""
 
 #, fuzzy, c-format
 msgid "conversion from '%s' to '%s' not available\n"
@@ -1782,6 +1801,14 @@ msgid "WARNING: '%s' is an empty file\n"
 msgstr "VAROVANIE: súbor `%s' je prázdny\n"
 
 #, fuzzy, c-format
+msgid "cipher algorithm '%s' may not be used in %s mode\n"
+msgstr "nemôžete použiť šifrovací algoritmus \"%s\" v móde %s\n"
+
+#, fuzzy, c-format
+msgid "digest algorithm '%s' may not be used in %s mode\n"
+msgstr "nemôžete použiť hashovací algoritmus \"%s\" v móde %s\n"
+
+#, fuzzy, c-format
 #| msgid "reading from `%s'\n"
 msgid "reading from '%s'\n"
 msgstr "čítam z `%s'\n"
@@ -1790,10 +1817,6 @@ msgstr "čítam z `%s'\n"
 msgid ""
 "WARNING: forcing symmetric cipher %s (%d) violates recipient preferences\n"
 msgstr "vyžiadaná symetrická šifra %s (%d) nevyhovuje predvoľbám príjemcu\n"
-
-#, fuzzy, c-format
-msgid "cipher algorithm '%s' may not be used in %s mode\n"
-msgstr "nemôžete použiť šifrovací algoritmus \"%s\" v móde %s\n"
 
 #, fuzzy, c-format
 msgid "WARNING: key %s is not suitable for encryption in %s mode\n"
@@ -2083,6 +2106,11 @@ msgstr "podpísať kľúč"
 msgid "quickly sign a key locally"
 msgstr "podpísať kľúč lokálne"
 
+#, fuzzy
+#| msgid "generate a new key pair"
+msgid "quickly revoke a key signature"
+msgstr "vytvoriť nový pár kľúčov"
+
 msgid "sign a key"
 msgstr "podpísať kľúč"
 
@@ -2365,11 +2393,6 @@ msgid "(use \"help\" to list choices)\n"
 msgstr ""
 
 #, fuzzy, c-format
-#| msgid "NOTE: old default options file `%s' ignored\n"
-msgid "Note: old default options file '%s' ignored\n"
-msgstr "POZNÁMKA: starý implicitný súbor s možnosťami `%s ignorovaný'\n"
-
-#, fuzzy, c-format
 #| msgid "NOTE: %s is not for normal use!\n"
 msgid "Note: %s is not for normal use!\n"
 msgstr "POZNÁMKA: %s nie je pre normálne použitie!\n"
@@ -2575,10 +2598,6 @@ msgstr "neplatné užívateľské predvoľby pre kompresiu\n"
 #, c-format
 msgid "%s does not yet work with %s\n"
 msgstr "%s ešte nepracuje s %s\n"
-
-#, fuzzy, c-format
-msgid "digest algorithm '%s' may not be used in %s mode\n"
-msgstr "nemôžete použiť hashovací algoritmus \"%s\" v móde %s\n"
 
 #, fuzzy, c-format
 msgid "compression algorithm '%s' may not be used in %s mode\n"
@@ -3135,6 +3154,59 @@ msgstr "kľúč %08lX: pridaný revokačný certifikát \"%s\"\n"
 #, fuzzy, c-format
 msgid "key %s: direct key signature added\n"
 msgstr "kľúč %08lX: podpis kľúča ním samým (direct key signature)\n"
+
+#, fuzzy, c-format
+msgid "error allocating memory: %s\n"
+msgstr "chyba pri vytváraní súboru kľúčov (keyring)`%s': %s\n"
+
+#, fuzzy, c-format
+msgid "can't check signature with unsupported public-key algorithm (%d): %s.\n"
+msgstr "kľúč %08lX: nepodporovaný algoritmus verejného kľúča\n"
+
+#, fuzzy, c-format
+msgid ""
+"can't check signature with unsupported message-digest algorithm %d: %s.\n"
+msgstr "%s podpis, hashovací algoritmus %s\n"
+
+#, fuzzy
+msgid " (reordered signatures follow)"
+msgstr "Dobrý podpis od \""
+
+#, fuzzy, c-format
+msgid "key %s:\n"
+msgstr "preskočený `%s': %s\n"
+
+#, fuzzy, c-format
+msgid "%d duplicate signature removed\n"
+msgid_plural "%d duplicate signatures removed\n"
+msgstr[0] "Užívateľské ID \"%s\" je revokované."
+msgstr[1] "Užívateľské ID \"%s\" je revokované."
+
+#, fuzzy, c-format
+#| msgid "1 signature not checked due to a missing key\n"
+msgid "%d signature not checked due to a missing key\n"
+msgid_plural "%d signatures not checked due to missing keys\n"
+msgstr[0] "1 podpis neoverený, pretože chýba kľúč\n"
+msgstr[1] "1 podpis neoverený, pretože chýba kľúč\n"
+
+#, fuzzy, c-format
+#| msgid "%d bad signatures\n"
+msgid "%d bad signature\n"
+msgid_plural "%d bad signatures\n"
+msgstr[0] "%d zlých podpisov\n"
+msgstr[1] "%d zlých podpisov\n"
+
+#, fuzzy, c-format
+msgid "%d signature reordered\n"
+msgid_plural "%d signatures reordered\n"
+msgstr[0] "Dobrý podpis od \""
+msgstr[1] "Dobrý podpis od \""
+
+#, c-format
+msgid ""
+"Warning: errors found and only checked self-signatures, run '%s' to check "
+"all signatures.\n"
+msgstr ""
 
 #, fuzzy, c-format
 msgid "error creating keybox '%s': %s\n"
@@ -3701,6 +3773,15 @@ msgid "Nothing to sign.\n"
 msgstr "Nič na podpísanie kľúčom %08lX\n"
 
 #, fuzzy, c-format
+msgid "Not signed by you.\n"
+msgstr "   podpísané %08lX v %s%s\n"
+
+#, fuzzy, c-format
+#| msgid "checking created signature failed: %s\n"
+msgid "revoking the key signature failed: %s\n"
+msgstr "kontrola vytvoreného podpisu sa nepodarila: %s\n"
+
+#, fuzzy, c-format
 msgid "'%s' is not a valid expiration time\n"
 msgstr "%s nie je platná znaková sada\n"
 
@@ -3711,6 +3792,9 @@ msgstr "chyba: neplatný odtlačok\n"
 #, fuzzy, c-format
 msgid "subkey \"%s\" not found\n"
 msgstr "kľúč `%s' nebol nájdený: %s\n"
+
+msgid "AEAD: "
+msgstr ""
 
 msgid "Digest: "
 msgstr "Digest: "
@@ -4000,10 +4084,6 @@ msgstr "Ste si istý, že ho chcete stále revokovať? (a/N) "
 
 msgid "Create a revocation certificate for this signature? (y/N) "
 msgstr "Vytvoriť pre tento podpis revokačný certifikát? (a/N)"
-
-#, fuzzy
-msgid "Not signed by you.\n"
-msgstr "   podpísané %08lX v %s%s\n"
 
 #, fuzzy, c-format
 msgid "You have signed these user IDs on key %s:\n"
@@ -4564,20 +4644,6 @@ msgid "%d good signature\n"
 msgid_plural "%d good signatures\n"
 msgstr[0] "%d zlých podpisov\n"
 msgstr[1] "%d zlých podpisov\n"
-
-#, fuzzy, c-format
-#| msgid "%d bad signatures\n"
-msgid "%d bad signature\n"
-msgid_plural "%d bad signatures\n"
-msgstr[0] "%d zlých podpisov\n"
-msgstr[1] "%d zlých podpisov\n"
-
-#, fuzzy, c-format
-#| msgid "1 signature not checked due to a missing key\n"
-msgid "%d signature not checked due to a missing key\n"
-msgid_plural "%d signatures not checked due to missing keys\n"
-msgstr[0] "1 podpis neoverený, pretože chýba kľúč\n"
-msgstr[1] "1 podpis neoverený, pretože chýba kľúč\n"
 
 #, fuzzy, c-format
 #| msgid "1 signature not checked due to an error\n"
@@ -6446,6 +6512,26 @@ msgid ""
 "List, export, import Keybox data\n"
 msgstr "Použitie: gpg [možnosti] [súbory] (-h pre pomoc)"
 
+#. TRANSLATORS: Put a \x1f right before a colon.  This can be
+#. * used by pinentry to nicely align the names and values.  Keep
+#. * the %s at the start and end of the string.
+#, c-format
+msgid "%sNumber: %s%%0AHolder: %s%s"
+msgstr ""
+
+#. TRANSLATORS: This is the number of remaining attempts to
+#. * enter a PIN.  Use %%0A (double-percent,0A) for a linefeed.
+#, c-format
+msgid "Remaining attempts: %d"
+msgstr ""
+
+msgid "||Please enter the PIN for the key to create qualified signatures."
+msgstr ""
+
+#, fuzzy
+msgid "||Please enter the PIN for the standard keys."
+msgstr "zmeniť heslo"
+
 #, c-format
 msgid "RSA modulus missing or not of size %d bits\n"
 msgstr ""
@@ -6467,10 +6553,6 @@ msgid "|N|Please enter a new PIN for the standard keys."
 msgstr "zmeniť heslo"
 
 #, fuzzy
-msgid "||Please enter the PIN for the standard keys."
-msgstr "zmeniť heslo"
-
-#, fuzzy
 msgid "|NP|Please enter a new PIN Unblocking Code (PUK) for the standard keys."
 msgstr "Prosím výberte dôvod na revokáciu:\n"
 
@@ -6479,9 +6561,6 @@ msgid "|P|Please enter the PIN Unblocking Code (PUK) for the standard keys."
 msgstr "Prosím výberte dôvod na revokáciu:\n"
 
 msgid "|N|Please enter a new PIN for the key to create qualified signatures."
-msgstr ""
-
-msgid "||Please enter the PIN for the key to create qualified signatures."
 msgstr ""
 
 msgid ""
@@ -6536,16 +6615,6 @@ msgstr "zmazanie bloku kľúča sa nepodarilo:  %s\n"
 #. * the %s at the start and end of the string.
 #, c-format
 msgid "%sNumber: %s%%0AHolder: %s%%0ACounter: %lu%s"
-msgstr ""
-
-#, c-format
-msgid "%sNumber: %s%%0AHolder: %s%s"
-msgstr ""
-
-#. TRANSLATORS: This is the number of remaining attempts to
-#. * enter a PIN.  Use %%0A (double-percent,0A) for a linefeed.
-#, c-format
-msgid "Remaining attempts: %d"
 msgstr ""
 
 #, c-format
@@ -6804,6 +6873,10 @@ msgstr "zapisujem tajný kľúč do `%s'\n"
 msgid "certificate policy not allowed"
 msgstr "zapisujem tajný kľúč do `%s'\n"
 
+#, fuzzy, c-format
+msgid "failed to get the fingerprint\n"
+msgstr "nemôžem inicializovať databázu dôvery: %s\n"
+
 #, c-format
 msgid "looking up issuer at external location\n"
 msgstr ""
@@ -6811,6 +6884,11 @@ msgstr ""
 #, c-format
 msgid "number of issuers matching: %d\n"
 msgstr ""
+
+#, fuzzy, c-format
+#| msgid "%s: can't access: %s\n"
+msgid "can't get authorityInfoAccess: %s\n"
+msgstr "%s: nemôžem pristupovať k: %s\n"
 
 #, c-format
 msgid "looking up issuer from the Dirmngr cache\n"
@@ -6978,6 +7056,10 @@ msgstr ""
 #, c-format
 msgid "a %u bit hash is not valid for a %u bit %s key\n"
 msgstr ""
+
+#, fuzzy, c-format
+msgid "out of core\n"
+msgstr "nespracované"
 
 #, c-format
 msgid "(this is the MD2 algorithm)\n"
@@ -7422,10 +7504,6 @@ msgstr "chyba pri vytváraní hesla: %s\n"
 msgid "error reading input: %s\n"
 msgstr "chyba pri čítaní `%s': %s\n"
 
-#, fuzzy, c-format
-msgid "failed to get the fingerprint\n"
-msgstr "nemôžem inicializovať databázu dôvery: %s\n"
-
 #, c-format
 msgid "problem looking for existing certificate: %s\n"
 msgstr ""
@@ -7505,8 +7583,8 @@ msgid "[date not given]"
 msgstr ""
 
 #, fuzzy, c-format
-msgid " using certificate ID 0x%08lX\n"
-msgstr "chyba pri vytváraní hesla: %s\n"
+msgid "algorithm:"
+msgstr "ASCII kódovanie: %s\n"
 
 #, c-format
 msgid ""
@@ -7836,15 +7914,6 @@ msgid "error getting data from cache file: %s\n"
 msgstr "chyba pri vytváraní hesla: %s\n"
 
 #, fuzzy, c-format
-#| msgid "invalid hash algorithm `%s'\n"
-msgid "unknown hash algorithm '%s'\n"
-msgstr "neplatný hashovací algoritmus `%s'\n"
-
-#, c-format
-msgid "gcry_md_open for algorithm %d failed: %s\n"
-msgstr ""
-
-#, fuzzy, c-format
 #| msgid "invalid response from agent\n"
 msgid "got an invalid S-expression from libksba\n"
 msgstr "neplatná reakcia od agenta\n"
@@ -7852,6 +7921,15 @@ msgstr "neplatná reakcia od agenta\n"
 #, fuzzy, c-format
 msgid "converting S-expression failed: %s\n"
 msgstr "nemožno otvoriť súbor: %s\n"
+
+#, fuzzy, c-format
+#| msgid "invalid hash algorithm `%s'\n"
+msgid "unknown hash algorithm '%s'\n"
+msgstr "neplatný hashovací algoritmus `%s'\n"
+
+#, c-format
+msgid "gcry_md_open for algorithm %d failed: %s\n"
+msgstr ""
 
 #, fuzzy, c-format
 msgid "creating S-expression failed: %s\n"
@@ -8486,10 +8564,6 @@ msgid "redirection changed to '%s'\n"
 msgstr "zapisujem do '%s'\n"
 
 #, fuzzy, c-format
-msgid "error allocating memory: %s\n"
-msgstr "chyba pri vytváraní súboru kľúčov (keyring)`%s': %s\n"
-
-#, fuzzy, c-format
 msgid "error printing log line: %s\n"
 msgstr "chyba pri zápise súboru kľúčov (keyring)  `%s': %s\n"
 
@@ -8634,11 +8708,6 @@ msgstr "vytvoriť revokačný certifikát"
 #, fuzzy, c-format
 msgid "failed to allocate OCSP context: %s\n"
 msgstr "nemôžem inicializovať databázu dôvery: %s\n"
-
-#, fuzzy, c-format
-#| msgid "%s: can't access: %s\n"
-msgid "can't get authorityInfoAccess: %s\n"
-msgstr "%s: nemôžem pristupovať k: %s\n"
 
 #, c-format
 msgid "no default OCSP responder defined\n"
@@ -9085,146 +9154,6 @@ msgid "No argument allowed"
 msgstr "zapisujem tajný kľúč do `%s'\n"
 
 #, fuzzy
-msgid ""
-"@\n"
-"Commands:\n"
-" "
-msgstr ""
-"@Príkazy:\n"
-" "
-
-#, fuzzy
-msgid "decryption modus"
-msgstr "dešifrovanie o.k.\n"
-
-#, fuzzy
-msgid "encryption modus"
-msgstr "dešifrovanie o.k.\n"
-
-msgid "tool class (confucius)"
-msgstr ""
-
-#, fuzzy
-msgid "program filename"
-msgstr "--store [meno súboru]"
-
-msgid "secret key file (required)"
-msgstr ""
-
-msgid "input file name (default stdin)"
-msgstr ""
-
-#, fuzzy
-msgid "Usage: symcryptrun [options] (-h for help)"
-msgstr "Použitie: gpg [možnosti] [súbory] (-h pre pomoc)"
-
-msgid ""
-"Syntax: symcryptrun --class CLASS --program PROGRAM --keyfile KEYFILE "
-"[options...] COMMAND [inputfile]\n"
-"Call a simple symmetric encryption tool\n"
-msgstr ""
-
-#, fuzzy, c-format
-msgid "%s on %s aborted with status %i\n"
-msgstr "Nie je dovolené používať %s s %s!\n"
-
-#, fuzzy, c-format
-msgid "%s on %s failed with status %i\n"
-msgstr "nemožno otvoriť súbor: %s\n"
-
-#, fuzzy, c-format
-msgid "can't create temporary directory '%s': %s\n"
-msgstr "nemôžem vytvoriť adresár `%s': %s\n"
-
-#, fuzzy, c-format
-msgid "could not open %s for writing: %s\n"
-msgstr "nemožno otvoriť %s: %s\n"
-
-#, fuzzy, c-format
-msgid "error writing to %s: %s\n"
-msgstr "chyba pri zápise súboru kľúčov (keyring)  `%s': %s\n"
-
-#, fuzzy, c-format
-msgid "error reading from %s: %s\n"
-msgstr "chyba pri čítaní `%s': %s\n"
-
-#, fuzzy, c-format
-msgid "error closing %s: %s\n"
-msgstr "chyba pri čítaní `%s': %s\n"
-
-#, fuzzy, c-format
-msgid "no --program option provided\n"
-msgstr "žiadne vzialené vykonávanie programu nie je podporované\n"
-
-#, c-format
-msgid "only --decrypt and --encrypt are supported\n"
-msgstr ""
-
-#, c-format
-msgid "no --keyfile option provided\n"
-msgstr ""
-
-#, c-format
-msgid "cannot allocate args vector\n"
-msgstr ""
-
-#, fuzzy, c-format
-msgid "could not create pipe: %s\n"
-msgstr "%s: nemôžem vytvoriť: %s\n"
-
-#, fuzzy, c-format
-msgid "could not create pty: %s\n"
-msgstr "%s: nemôžem vytvoriť: %s\n"
-
-#, c-format
-msgid "could not fork: %s\n"
-msgstr ""
-
-#, fuzzy, c-format
-msgid "execv failed: %s\n"
-msgstr "aktualizácia zlyhala: %s\n"
-
-#, fuzzy, c-format
-msgid "select failed: %s\n"
-msgstr "zmazanie bloku kľúča sa nepodarilo:  %s\n"
-
-#, fuzzy, c-format
-msgid "read failed: %s\n"
-msgstr "aktualizácia zlyhala: %s\n"
-
-#, fuzzy, c-format
-msgid "pty read failed: %s\n"
-msgstr "aktualizácia zlyhala: %s\n"
-
-#, fuzzy, c-format
-msgid "waitpid failed: %s\n"
-msgstr "aktualizácia zlyhala: %s\n"
-
-#, c-format
-msgid "child aborted with status %i\n"
-msgstr ""
-
-#, fuzzy, c-format
-msgid "cannot allocate infile string: %s\n"
-msgstr "nemôžem vytvoriť `%s': %s\n"
-
-#, fuzzy, c-format
-msgid "cannot allocate outfile string: %s\n"
-msgstr "nemôžem vytvoriť `%s': %s\n"
-
-#, c-format
-msgid "either %s or %s must be given\n"
-msgstr ""
-
-#, c-format
-msgid "no class provided\n"
-msgstr ""
-
-#, fuzzy, c-format
-msgid "class %s is not supported\n"
-msgstr "ochranný algoritmus %d%s nie je podporováný\n"
-
-#, fuzzy
 msgid "Usage: gpg-check-pattern [options] patternfile (-h for help)\n"
 msgstr "Použitie: gpg [možnosti] [súbory] (-h pre pomoc)"
 
@@ -9232,6 +9161,112 @@ msgid ""
 "Syntax: gpg-check-pattern [options] patternfile\n"
 "Check a passphrase given on stdin against the patternfile\n"
 msgstr ""
+
+#, fuzzy
+#~| msgid "NOTE: old default options file `%s' ignored\n"
+#~ msgid "Note: old default options file '%s' ignored\n"
+#~ msgstr "POZNÁMKA: starý implicitný súbor s možnosťami `%s ignorovaný'\n"
+
+#, fuzzy
+#~ msgid ""
+#~ "@\n"
+#~ "Commands:\n"
+#~ " "
+#~ msgstr ""
+#~ "@Príkazy:\n"
+#~ " "
+
+#, fuzzy
+#~ msgid "decryption modus"
+#~ msgstr "dešifrovanie o.k.\n"
+
+#, fuzzy
+#~ msgid "encryption modus"
+#~ msgstr "dešifrovanie o.k.\n"
+
+#, fuzzy
+#~ msgid "program filename"
+#~ msgstr "--store [meno súboru]"
+
+#, fuzzy
+#~ msgid "Usage: symcryptrun [options] (-h for help)"
+#~ msgstr "Použitie: gpg [možnosti] [súbory] (-h pre pomoc)"
+
+#, fuzzy
+#~ msgid "%s on %s aborted with status %i\n"
+#~ msgstr "Nie je dovolené používať %s s %s!\n"
+
+#, fuzzy
+#~ msgid "%s on %s failed with status %i\n"
+#~ msgstr "nemožno otvoriť súbor: %s\n"
+
+#, fuzzy
+#~ msgid "can't create temporary directory '%s': %s\n"
+#~ msgstr "nemôžem vytvoriť adresár `%s': %s\n"
+
+#, fuzzy
+#~ msgid "could not open %s for writing: %s\n"
+#~ msgstr "nemožno otvoriť %s: %s\n"
+
+#, fuzzy
+#~ msgid "error writing to %s: %s\n"
+#~ msgstr "chyba pri zápise súboru kľúčov (keyring)  `%s': %s\n"
+
+#, fuzzy
+#~ msgid "error reading from %s: %s\n"
+#~ msgstr "chyba pri čítaní `%s': %s\n"
+
+#, fuzzy
+#~ msgid "error closing %s: %s\n"
+#~ msgstr "chyba pri čítaní `%s': %s\n"
+
+#, fuzzy
+#~ msgid "no --program option provided\n"
+#~ msgstr "žiadne vzialené vykonávanie programu nie je podporované\n"
+
+#, fuzzy
+#~ msgid "could not create pipe: %s\n"
+#~ msgstr "%s: nemôžem vytvoriť: %s\n"
+
+#, fuzzy
+#~ msgid "could not create pty: %s\n"
+#~ msgstr "%s: nemôžem vytvoriť: %s\n"
+
+#, fuzzy
+#~ msgid "execv failed: %s\n"
+#~ msgstr "aktualizácia zlyhala: %s\n"
+
+#, fuzzy
+#~ msgid "select failed: %s\n"
+#~ msgstr "zmazanie bloku kľúča sa nepodarilo:  %s\n"
+
+#, fuzzy
+#~ msgid "read failed: %s\n"
+#~ msgstr "aktualizácia zlyhala: %s\n"
+
+#, fuzzy
+#~ msgid "pty read failed: %s\n"
+#~ msgstr "aktualizácia zlyhala: %s\n"
+
+#, fuzzy
+#~ msgid "waitpid failed: %s\n"
+#~ msgstr "aktualizácia zlyhala: %s\n"
+
+#, fuzzy
+#~ msgid "cannot allocate infile string: %s\n"
+#~ msgstr "nemôžem vytvoriť `%s': %s\n"
+
+#, fuzzy
+#~ msgid "cannot allocate outfile string: %s\n"
+#~ msgstr "nemôžem vytvoriť `%s': %s\n"
+
+#, fuzzy
+#~ msgid "class %s is not supported\n"
+#~ msgstr "ochranný algoritmus %d%s nie je podporováný\n"
+
+#, fuzzy
+#~ msgid " using certificate ID 0x%08lX\n"
+#~ msgstr "chyba pri vytváraní hesla: %s\n"
 
 #, fuzzy
 #~| msgid "you may not use %s while in %s mode\n"
@@ -9322,36 +9357,6 @@ msgstr ""
 #, fuzzy
 #~ msgid "listen() failed: %s\n"
 #~ msgstr "aktualizácia zlyhala: %s\n"
-
-#, fuzzy
-#~ msgid ""
-#~ "can't check signature with unsupported public-key algorithm (%d): %s.\n"
-#~ msgstr "kľúč %08lX: nepodporovaný algoritmus verejného kľúča\n"
-
-#, fuzzy
-#~ msgid ""
-#~ "can't check signature with unsupported message-digest algorithm %d: %s.\n"
-#~ msgstr "%s podpis, hashovací algoritmus %s\n"
-
-#, fuzzy
-#~ msgid " (reordered signatures follow)"
-#~ msgstr "Dobrý podpis od \""
-
-#, fuzzy
-#~ msgid "key %s:\n"
-#~ msgstr "preskočený `%s': %s\n"
-
-#, fuzzy
-#~ msgid "%d duplicate signature removed\n"
-#~ msgid_plural "%d duplicate signatures removed\n"
-#~ msgstr[0] "Užívateľské ID \"%s\" je revokované."
-#~ msgstr[1] "Užívateľské ID \"%s\" je revokované."
-
-#, fuzzy
-#~ msgid "%d signature reordered\n"
-#~ msgid_plural "%d signatures reordered\n"
-#~ msgstr[0] "Dobrý podpis od \""
-#~ msgstr[1] "Dobrý podpis od \""
 
 #, fuzzy
 #~| msgid "new configuration file `%s' created\n"
@@ -10460,9 +10465,6 @@ msgstr ""
 
 #~ msgid "file delete error"
 #~ msgstr "chyba pri mazaní súboru"
-
-#~ msgid "unexpected data"
-#~ msgstr "neočakávané dáta"
 
 #~ msgid "timestamp conflict"
 #~ msgstr "konflikt časového razítka"

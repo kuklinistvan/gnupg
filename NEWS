@@ -1,3 +1,239 @@
+Noteworthy changes in version 2.2.27 (2021-01-11)
+-------------------------------------------------
+
+ * gpg: Fix regression in 2.2.24 for gnupg_remove function under
+   Windows.  [#5230]
+
+ * gpgconf: Fix case with neither local nor global gpg.conf.  [9f37d3e6f3]
+
+ * gpgconf: Fix description of two new options.  [#5221]
+
+ * Build Windows installer without timestamps.  Note that the
+   Authenticode signatures still carry a timestamp.
+
+  Release-info: https://dev.gnupg.org/T5234
+  See-also: gnupg-announce/2021q1/000452.html
+
+
+Noteworthy changes in version 2.2.26 (2020-12-21)
+-------------------------------------------------
+
+  * gpg: New AKL method "ntds".  [559efd23e9]
+
+  * gpg: Fix --trusted-key with fingerprint arg.  [8a2e5025eb]
+
+  * scd: Fix writing of ECC keys to an OpenPGP card.  [#5163]
+
+  * scd: Make an USB error fix specific to SPR532 readers.  [#5167]
+
+  * dirmngr: With new LDAP keyservers store the new attributes.  Never
+    store the useless pgpSignerID.  Fix a long standing bug storing
+    some keys on an ldap server.  [0e88c73bc9,e47de85382]
+
+  * dirmngr: Support the new Active Direcory LDAP schema for
+    keyservers.  [ac8ece9266]
+
+  * dirmngr: Allow LDAP OpenPGP searches via fingerprint.
+    [c75fd75532]
+
+  * dirmngr: Do not block other threads during keyserver LDAP calls.
+    [15bfd189c0]
+
+  * Support global configuration files.  [#4788,a028f24136]
+
+  * Fix the iconv fallback handling to UTF-8.  [#5038]
+
+  Release-info: https://dev.gnupg.org/T5153
+  See-also: gnupg-announce/2020q4/000451.html
+
+
+Noteworthy changes in version 2.2.25 (2020-11-23)
+-------------------------------------------------
+
+  * scd: Fix regression in 2.2.24 requiring gpg --card-status before
+    signing or decrypting.  [#5065]
+
+  * gpgsm: Using Libksba 1.5.0 signatures with a rarely used
+    combination of attributes can now be verified.  [#5146]
+
+  Release-info: https://dev.gnupg.org/T5140
+  See-also: gnupg-announce/2020q4/000450.html
+
+
+Noteworthy changes in version 2.2.24 (2020-11-17)
+-------------------------------------------------
+
+  * Allow Unicode file names on Windows almost everywhere.  Note that
+    it is still not possible to use Unicode strings on the command
+    line.  This change also fixes a regression in 2.2.22 related to
+    non-ascii file names.  [#5098]
+
+  * Fix localized time printing on Windows.  [#5073]
+
+  * gpg: New command --quick-revoke-sig.  [#5093]
+
+  * gpg: Do not use weak digest algos if selected by recipient
+    preference during sign+encrypt.  [4c181d51a6]
+
+  * gpg: Switch to AES256 for symmetric encryption in de-vs mode.
+    [166e779634]
+
+  * gpg: Silence weak digest warnings with --quiet.  [#4893]
+
+  * gpg: Print new status line CANCELED_BY_USER for a cancel during
+    symmetric encryption.  [f05d1772c4]
+
+  * gpg: Fix the encrypt+sign hash algo preference selection for
+    ECDSA.  This is in particular needed for keys created from
+    existing smartcard based keys.  [aeed0b93ff]
+
+  * agent: Fix secret key import of GnuPG 2.3 generated Ed25519 keys.
+    [#5114]
+
+  * agent: Keep some permissions of private-keys-v1.d.  [#2312]
+
+  * dirmngr: Align sks-keyservers.netCA.pem use between ntbtls and
+    gnutls builds.  [e4f3b74c91]
+
+  * dirmngr: Fix the pool keyserver case for a single host in the
+    pool.  [72e04b03b1a7]
+
+  * scd: Fix the use case of verify_chv2 by CHECKPIN.  [61aea64b3c]
+
+  * scd: Various improvements to the ccid-driver.  [#4616,#5065]
+
+  * scd: Minor fixes for Yubikey [25bec16d0b]
+
+  * gpgconf: New option --show-versions.
+
+  * w32: Install gpg-check-pattern and example profiles.  Install
+    Windows subsystem variant of gpgconf (gpgconf-w32).
+
+  * i18n: Complete overhaul and completion of the Italian translation.
+    Thanks to Denis Renzi.
+
+  * Require Libgcrypt 1.8 because 1.7 has long reached end-of-life.
+
+  Release-info: https://dev.gnupg.org/T5052
+  See-also: gnupg-announce/2020q4/000449.html
+
+
+Noteworthy changes in version 2.2.23 (2020-09-03)
+-------------------------------------------------
+
+  * gpg: Fix AEAD preference list overflow.  [#5050]
+
+  * gpg: Fix a possible segv in the key cleaning code.
+
+  * gpgsm: Fix a minor RFC2253 parser bug.  [#5037]
+
+  * scdaemon: Fix a PIN verify failure on certain OpenPGP card
+    implementations.  Regression in 2.2.22.  [#5039]
+
+  * po: Fix bug in the Hungarian translation.  Updates for the Czech,
+    Polish, and Ukrainian translations.
+
+  Release-info: https://dev.gnupg.org/T5045
+  See-also: gnupg-announce/2020q3/000448.html
+
+
+Noteworthy changes in version 2.2.22 (2020-08-27)
+-------------------------------------------------
+
+  * gpg: Change the default key algorithm to rsa3072.
+
+  * gpg: Add regular expression support for Trust Signatures on all
+    platforms.  [#4843]
+
+  * gpg: Fix regression in 2.2.21 with non-default --passphrase-repeat
+    option.  [#4991]
+
+  * gpg: Ignore --personal-digest-prefs for ECDSA keys.  [#5021]
+
+  * gpgsm: Make rsaPSS a de-vs compliant scheme.
+
+  * gpgsm: Show also the SHA256 fingerprint in key listings.
+
+  * gpgsm: Do not require a default keyring for --gpgconf-list.  [#4867]
+
+  * gpg-agent: Default to extended key format and record the creation
+    time of keys.  Add new option --disable-extended-key-format.
+
+  * gpg-agent: Support the WAYLAND_DISPLAY envvar.  [#5016]
+
+  * gpg-agent: Allow using --gpgconf-list even if HOME does not
+    exist.  [#4866]
+
+  * gpg-agent: Make the Pinentry work even if the envvar TERM is set
+    to the empty string.  [#4137]
+
+  * scdaemon: Add a workaround for Gnuk tokens <= 2.15 which wrongly
+    incremented the error counter when using the "verify" command of
+    "gpg --edit-key" with only the signature key being present.
+
+  * dirmngr: Better handle systems with disabled IPv6.  [#4977]
+
+  * gpgpslit: Install tool.  It was not installed in the past to avoid
+    conflicts with the version installed by GnuPG 1.4.  [#5023]
+
+  * gpgtar: Handle Unicode file names on Windows correctly (requires
+    libgpg-error 1.39).  [#4083]
+
+  * gpgtar: Make --files-from and --null work as documented.  [#5027]
+
+  * Build the Windows installer with the new Ntbtls 0.2.0 so that TLS
+    connections succeed for servers demanding GCM.
+
+  Release-info: https://dev.gnupg.org/T5030
+  See-also: gnupg-announce/2020q3/000447.html
+
+
+Noteworthy changes in version 2.2.21 (2020-07-09)
+-------------------------------------------------
+
+  * gpg: Improve symmetric decryption speed by about 25%.
+    See commit 144b95cc9d.
+
+  * gpg: Support decryption of AEAD encrypted data packets.
+
+  * gpg: Add option --no-include-key-block. [#4856]
+
+  * gpg: Allow for extra padding in ECDH.  [#4908]
+
+  * gpg: Only a single pinentry is shown for symmetric encryption if
+    the pinentry supports this.  [#4971]
+
+  * gpg: Print a note if no keys are given to --delete-key.  [#4959]
+
+  * gpg,gpgsm: The ridiculous passphrase quality bar is not anymore
+    shown.  [#2103]
+
+  * gpgsm: Certificates without a CRL distribution point are now
+    considered valid without looking up a CRL.  The new option
+    --enable-issuer-based-crl-check can be used to revert to the
+    former behaviour.
+
+  * gpgsm: Support rsaPSS signature verification.  [#4538]
+
+  * gpgsm: Unless CRL checking is disabled lookup a missing issuer
+    certificate using the certificate's authorityInfoAccess.  [#4898]
+
+  * gpgsm: Print the certificate's serial number also in decimal
+    notation.
+
+  * gpgsm: Fix possible NULL-deref in messages of --gen-key.  [#4895]
+
+  * scd: Support the CardOS 5 based D-Trust Card 3.1.
+
+  * dirmngr: Allow http URLs with "LOOKUP --url".
+
+  * wkd: Take name of sendmail from configure.  Fixes an OpenBSD
+    specific bug.  [#4886]
+
+  Release-info: https://dev.gnupg.org/T4897
+  See-also: gnupg-announce/2020q3/000446.html
+
+
 Noteworthy changes in version 2.2.20 (2020-03-20)
 -------------------------------------------------
 
@@ -549,11 +785,16 @@ Noteworthy changes in version 2.2.6 (2018-04-09)
 
   * gpg: Print the keygrips in the --card-status.
 
+  * gpg: Improve the OpenPGP card's factory-reset.  [7f765a98fd]
+
   * scd: Support KDF DO setup.  [#3823]
 
   * scd: Fix some issues with PC/SC on Windows.  [#3825]
 
   * scd: Fix suspend/resume handling in the CCID driver.
+
+  * scd: Fix a race condition in the CCID driver leading to a segv for
+    some readers.  [#5121]
 
   * agent: Evict cached passphrases also via a timer.  [#3829]
 

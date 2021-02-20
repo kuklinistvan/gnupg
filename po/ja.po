@@ -8,9 +8,9 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: gnupg 2.2.20\n"
+"Project-Id-Version: gnupg 2.2.23\n"
 "Report-Msgid-Bugs-To: translations@gnupg.org\n"
-"PO-Revision-Date: 2020-03-19 09:27+0900\n"
+"PO-Revision-Date: 2020-11-12 12:59+0900\n"
 "Last-Translator: NIIBE Yutaka <gniibe@fsij.org>\n"
 "Language-Team: none\n"
 "Language: ja\n"
@@ -97,6 +97,9 @@ msgstr "一致しません - もう一度"
 #. the pinentry.  The %s is the actual error message, the
 #. two %d give the current and maximum number of tries.
 #. Do not translate the "SETERROR" keyword.
+#. TRANSLATORS: The string is appended to an error message in
+#. the pinentry.  The %s is the actual error message, the
+#. two %d give the current and maximum number of tries.
 #, c-format
 msgid "SETERROR %s (try %d of %d)"
 msgstr "SETERROR %s (現在 %d / 最大 %d)"
@@ -398,14 +401,6 @@ msgstr "無効なdebug-level '%s'が与えられました\n"
 #, c-format
 msgid "selected digest algorithm is invalid\n"
 msgstr "選択されたダイジェスト・アルゴリズムは、無効です\n"
-
-#, c-format
-msgid "Note: no default option file '%s'\n"
-msgstr "注意: デフォルトのオプション・ファイル '%s' がありません\n"
-
-#, c-format
-msgid "option file '%s': %s\n"
-msgstr "オプション・ファイル '%s': %s\n"
 
 #, c-format
 msgid "reading options from '%s'\n"
@@ -1012,8 +1007,26 @@ msgstr "無効なコマンド"
 msgid "invalid alias definition"
 msgstr "無効なエイリアス定義です"
 
+msgid "permission error"
+msgstr ""
+
 msgid "out of core"
 msgstr "メモリがありません"
+
+#, fuzzy
+#| msgid "invalid command"
+msgid "invalid meta command"
+msgstr "無効なコマンド"
+
+#, fuzzy
+#| msgid "unknown command '%s'\n"
+msgid "unknown meta command"
+msgstr "不明のコマンド'%s'\n"
+
+#, fuzzy
+#| msgid "unexpected armor: "
+msgid "unexpected meta command"
+msgstr "予期せぬ外装: "
 
 msgid "invalid option"
 msgstr "無効なオプション"
@@ -1043,12 +1056,20 @@ msgid "command \"%.50s\" is ambiguous\n"
 msgstr "コマンド\"%.50s\"はあいまいです\n"
 
 #, c-format
-msgid "out of core\n"
-msgstr "メモリがありません\n"
-
-#, c-format
 msgid "invalid option \"%.50s\"\n"
 msgstr "無効なオプション \"%.50s\"\n"
+
+#, c-format
+msgid "Note: no default option file '%s'\n"
+msgstr "注意: デフォルトのオプション・ファイル '%s' がありません\n"
+
+#, c-format
+msgid "option file '%s': %s\n"
+msgstr "オプション・ファイル '%s': %s\n"
+
+#, c-format
+msgid "Note: ignoring option \"--%s\" due to global config\n"
+msgstr ""
 
 #, c-format
 msgid "conversion from '%s' to '%s' not available\n"
@@ -1667,6 +1688,14 @@ msgid "WARNING: '%s' is an empty file\n"
 msgstr "*警告*: '%s'は空のファイルです\n"
 
 #, c-format
+msgid "cipher algorithm '%s' may not be used in %s mode\n"
+msgstr "暗号アルゴリズム'%s'を%sモードで使うことはできません\n"
+
+#, c-format
+msgid "digest algorithm '%s' may not be used in %s mode\n"
+msgstr "ダイジェスト・アルゴリズム'%s'を%sモードで使うことはできません\n"
+
+#, c-format
 msgid "reading from '%s'\n"
 msgstr "'%s'から読み込み\n"
 
@@ -1675,10 +1704,6 @@ msgid ""
 "WARNING: forcing symmetric cipher %s (%d) violates recipient preferences\n"
 msgstr ""
 "*警告*: 共通鍵暗号方式 %s (%d) の強制が、受取人の優先指定をそむきます\n"
-
-#, c-format
-msgid "cipher algorithm '%s' may not be used in %s mode\n"
-msgstr "暗号アルゴリズム'%s'を%sモードで使うことはできません\n"
 
 #, c-format
 msgid "WARNING: key %s is not suitable for encryption in %s mode\n"
@@ -1927,10 +1952,13 @@ msgid "remove keys from the secret keyring"
 msgstr "秘密鍵リングから鍵を削除"
 
 msgid "quickly sign a key"
-msgstr "鍵にすばやく署名"
+msgstr "すばやく鍵に署名"
 
 msgid "quickly sign a key locally"
-msgstr "鍵へすばやくローカルに署名"
+msgstr "すばやく鍵へローカルに署名"
+
+msgid "quickly revoke a key signature"
+msgstr "すばやく鍵への署名を失効"
 
 msgid "sign a key"
 msgstr "鍵に署名"
@@ -2180,10 +2208,6 @@ msgid "(use \"help\" to list choices)\n"
 msgstr "(選択肢の一覧には\"help\"を使ってください)\n"
 
 #, c-format
-msgid "Note: old default options file '%s' ignored\n"
-msgstr "注意: 以前デフォルトだったオプション・ファイル'%s'は、無視されます\n"
-
-#, c-format
 msgid "Note: %s is not for normal use!\n"
 msgstr "注意: 普通%sは使いません!\n"
 
@@ -2383,10 +2407,6 @@ msgstr "無効な個人用圧縮の優先指定\n"
 #, c-format
 msgid "%s does not yet work with %s\n"
 msgstr "%sは%sではまだ機能しません\n"
-
-#, c-format
-msgid "digest algorithm '%s' may not be used in %s mode\n"
-msgstr "ダイジェスト・アルゴリズム'%s'を%sモードで使うことはできません\n"
 
 #, c-format
 msgid "compression algorithm '%s' may not be used in %s mode\n"
@@ -2922,6 +2942,55 @@ msgid "key %s: direct key signature added\n"
 msgstr "鍵%s: 直接鍵署名を追加\n"
 
 #, c-format
+msgid "error allocating memory: %s\n"
+msgstr "メモリの確保のエラー: %s\n"
+
+#, c-format
+msgid "can't check signature with unsupported public-key algorithm (%d): %s.\n"
+msgstr "サポートしていない公開鍵アルゴリズム(%d)の署名は確認できません: %s.\n"
+
+#, c-format
+msgid ""
+"can't check signature with unsupported message-digest algorithm %d: %s.\n"
+msgstr ""
+"サポートしていないメッセージ・ダイジェスト(%d)の署名は確認できません: %s.\n"
+
+msgid " (reordered signatures follow)"
+msgstr "(順番を変えた署名が続きます)"
+
+#, c-format
+msgid "key %s:\n"
+msgstr "鍵  %s:\n"
+
+#, c-format
+msgid "%d duplicate signature removed\n"
+msgid_plural "%d duplicate signatures removed\n"
+msgstr[0] "%d個の重複した署名が除去されました\n"
+
+#, c-format
+msgid "%d signature not checked due to a missing key\n"
+msgid_plural "%d signatures not checked due to missing keys\n"
+msgstr[0] "鍵がないため%d個の署名は検査しません\n"
+
+#, c-format
+msgid "%d bad signature\n"
+msgid_plural "%d bad signatures\n"
+msgstr[0] "%d個の不正な署名\n"
+
+#, c-format
+msgid "%d signature reordered\n"
+msgid_plural "%d signatures reordered\n"
+msgstr[0] "%d個の正しい署名\n"
+
+#, c-format
+msgid ""
+"Warning: errors found and only checked self-signatures, run '%s' to check "
+"all signatures.\n"
+msgstr ""
+"警告: エラーがあり、自己署名だけ確認しました。'%s'を実行してすべての署名を確"
+"認ください。\n"
+
+#, c-format
 msgid "error creating keybox '%s': %s\n"
 msgstr "keybox'%s'の作成エラー: %s\n"
 
@@ -3412,6 +3481,14 @@ msgid "Nothing to sign.\n"
 msgstr "署名するものがありません。\n"
 
 #, c-format
+msgid "Not signed by you.\n"
+msgstr "あなたによって署名されていません。\n"
+
+#, c-format
+msgid "revoking the key signature failed: %s\n"
+msgstr "鍵の署名の失効に失敗しました: %s\n"
+
+#, c-format
 msgid "'%s' is not a valid expiration time\n"
 msgstr "'%s'は、有効な有効期限ではありません\n"
 
@@ -3422,6 +3499,9 @@ msgstr "\"%s\"は正しいフィンガープリントではありません\n"
 #, c-format
 msgid "subkey \"%s\" not found\n"
 msgstr "副鍵\"%s\"が見つかりません\n"
+
+msgid "AEAD: "
+msgstr "AEAD: "
 
 msgid "Digest: "
 msgstr "ダイジェスト: "
@@ -3694,9 +3774,6 @@ msgstr "それでも本当に失効したいですか? (y/N) "
 
 msgid "Create a revocation certificate for this signature? (y/N) "
 msgstr "この署名に対する失効証明書を作成しますか? (y/N) "
-
-msgid "Not signed by you.\n"
-msgstr "あなたによって署名されていません。\n"
 
 #, c-format
 msgid "You have signed these user IDs on key %s:\n"
@@ -4230,16 +4307,6 @@ msgstr "署名注釈: "
 msgid "%d good signature\n"
 msgid_plural "%d good signatures\n"
 msgstr[0] "正しい署名%d個\n"
-
-#, c-format
-msgid "%d bad signature\n"
-msgid_plural "%d bad signatures\n"
-msgstr[0] "%d個の不正な署名\n"
-
-#, c-format
-msgid "%d signature not checked due to a missing key\n"
-msgid_plural "%d signatures not checked due to missing keys\n"
-msgstr[0] "鍵がないため%d個の署名は検査しません\n"
 
 #, c-format
 msgid "%d signature not checked due to an error\n"
@@ -5998,6 +6065,25 @@ msgstr ""
 "形式:  kbxutil [オプション] [ファイル]\n"
 "Keyboxデータを一覧、エクスポート、インポート\n"
 
+#. TRANSLATORS: Put a \x1f right before a colon.  This can be
+#. * used by pinentry to nicely align the names and values.  Keep
+#. * the %s at the start and end of the string.
+#, c-format
+msgid "%sNumber: %s%%0AHolder: %s%s"
+msgstr "%s番号: %s%%0A保持者: %s%s"
+
+#. TRANSLATORS: This is the number of remaining attempts to
+#. * enter a PIN.  Use %%0A (double-percent,0A) for a linefeed.
+#, c-format
+msgid "Remaining attempts: %d"
+msgstr "残された試行回数: %d"
+
+msgid "||Please enter the PIN for the key to create qualified signatures."
+msgstr "||新しいPINを認定署名を生成する鍵のために入力してください。"
+
+msgid "||Please enter the PIN for the standard keys."
+msgstr "||PINを標準の鍵のために入力してください。"
+
 #, c-format
 msgid "RSA modulus missing or not of size %d bits\n"
 msgstr "RSAのモジュラスがないか、%dビットのものではありません\n"
@@ -6017,9 +6103,6 @@ msgstr "NullPINが変更されていません\n"
 msgid "|N|Please enter a new PIN for the standard keys."
 msgstr "|N|新しいPINを標準の鍵のために入力してください。"
 
-msgid "||Please enter the PIN for the standard keys."
-msgstr "||PINを標準の鍵のために入力してください。"
-
 msgid "|NP|Please enter a new PIN Unblocking Code (PUK) for the standard keys."
 msgstr "|NP|標準の鍵の新しいPIN Unblocking Code (PUK)を入力してください。"
 
@@ -6028,9 +6111,6 @@ msgstr "|P|標準の鍵のPIN Unblocking Code (PUK)を入力してください�
 
 msgid "|N|Please enter a new PIN for the key to create qualified signatures."
 msgstr "|N|新しいPINを認定署名を生成する鍵のために入力してください。"
-
-msgid "||Please enter the PIN for the key to create qualified signatures."
-msgstr "||新しいPINを認定署名を生成する鍵のために入力してください。"
 
 msgid ""
 "|NP|Please enter a new PIN Unblocking Code (PUK) for the key to create "
@@ -6086,16 +6166,6 @@ msgstr "公開鍵の読み込みに失敗しました: %s\n"
 #, c-format
 msgid "%sNumber: %s%%0AHolder: %s%%0ACounter: %lu%s"
 msgstr "%s番号: %s%%0A保持者: %s%%0Aカウンタ: %lu%s"
-
-#, c-format
-msgid "%sNumber: %s%%0AHolder: %s%s"
-msgstr "%s番号: %s%%0A保持者: %s%s"
-
-#. TRANSLATORS: This is the number of remaining attempts to
-#. * enter a PIN.  Use %%0A (double-percent,0A) for a linefeed.
-#, c-format
-msgid "Remaining attempts: %d"
-msgstr "残された試行回数: %d"
 
 #, c-format
 msgid "using default PIN as %s\n"
@@ -6343,12 +6413,20 @@ msgid "certificate policy not allowed"
 msgstr "証明書ポリシーは認められません"
 
 #, c-format
+msgid "failed to get the fingerprint\n"
+msgstr "フィンガープリントの取得に失敗しました\n"
+
+#, c-format
 msgid "looking up issuer at external location\n"
 msgstr "発行者の外部ロケーションを調べています\n"
 
 #, c-format
 msgid "number of issuers matching: %d\n"
 msgstr "マッチする発行者の数: %d\n"
+
+#, c-format
+msgid "can't get authorityInfoAccess: %s\n"
+msgstr "authorityInfoAccessを取得できません: %s\n"
 
 #, c-format
 msgid "looking up issuer from the Dirmngr cache\n"
@@ -6513,6 +6591,10 @@ msgstr "使用した検証モデル: %s"
 #, c-format
 msgid "a %u bit hash is not valid for a %u bit %s key\n"
 msgstr "%uビットハッシュは%uビットの%s鍵には無効です\n"
+
+#, c-format
+msgid "out of core\n"
+msgstr "メモリがありません\n"
 
 #, c-format
 msgid "(this is the MD2 algorithm)\n"
@@ -6933,10 +7015,6 @@ msgid "error reading input: %s\n"
 msgstr "入力読み込みエラー: %s\n"
 
 #, c-format
-msgid "failed to get the fingerprint\n"
-msgstr "フィンガープリントの取得に失敗しました\n"
-
-#, c-format
 msgid "problem looking for existing certificate: %s\n"
 msgstr "既存の証明書の検索の問題: %s\n"
 
@@ -7028,8 +7106,8 @@ msgid "[date not given]"
 msgstr "[日時指定なし]"
 
 #, c-format
-msgid " using certificate ID 0x%08lX\n"
-msgstr " 証明書 ID 0x%08lXを用います\n"
+msgid "algorithm:"
+msgstr "アルゴリズム:"
 
 #, c-format
 msgid ""
@@ -7353,20 +7431,20 @@ msgid "error getting data from cache file: %s\n"
 msgstr "キャッシュ・ファイルからデータの取得エラー: %s\n"
 
 #, c-format
-msgid "unknown hash algorithm '%s'\n"
-msgstr "不明なハッシュ・アルゴリズム'%s'\n"
-
-#, c-format
-msgid "gcry_md_open for algorithm %d failed: %s\n"
-msgstr "アルゴリズム%dのgcry_md_openが失敗: %s\n"
-
-#, c-format
 msgid "got an invalid S-expression from libksba\n"
 msgstr "libksbaから無効なS-式を取得しました\n"
 
 #, c-format
 msgid "converting S-expression failed: %s\n"
 msgstr "S式の変換に失敗しました: %s\n"
+
+#, c-format
+msgid "unknown hash algorithm '%s'\n"
+msgstr "不明なハッシュ・アルゴリズム'%s'\n"
+
+#, c-format
+msgid "gcry_md_open for algorithm %d failed: %s\n"
+msgstr "アルゴリズム%dのgcry_md_openが失敗: %s\n"
 
 #, c-format
 msgid "creating S-expression failed: %s\n"
@@ -7971,10 +8049,6 @@ msgid "redirection changed to '%s'\n"
 msgstr "リダイレクトが'%s'に変更されました\n"
 
 #, c-format
-msgid "error allocating memory: %s\n"
-msgstr "メモリの確保のエラー: %s\n"
-
-#, c-format
 msgid "error printing log line: %s\n"
 msgstr "log出力エラー: %s\n"
 
@@ -8117,10 +8191,6 @@ msgstr "呼出側が発行される証明書を返しませんでした\n"
 #, c-format
 msgid "failed to allocate OCSP context: %s\n"
 msgstr "OCSPコンテクストの確保に失敗しました: %s\n"
-
-#, c-format
-msgid "can't get authorityInfoAccess: %s\n"
-msgstr "authorityInfoAccessを取得できません: %s\n"
 
 #, c-format
 msgid "no default OCSP responder defined\n"
@@ -8542,145 +8612,6 @@ msgstr "コンポーネントが見つかりません"
 msgid "No argument allowed"
 msgstr "引数は許可されていません"
 
-msgid ""
-"@\n"
-"Commands:\n"
-" "
-msgstr ""
-"@\n"
-"@コマンド:\n"
-" "
-
-msgid "decryption modus"
-msgstr "復号方式"
-
-msgid "encryption modus"
-msgstr "暗号方式"
-
-msgid "tool class (confucius)"
-msgstr "ツール・クラス (confucius)"
-
-msgid "program filename"
-msgstr "program [ファイル名]"
-
-msgid "secret key file (required)"
-msgstr "秘密鍵ファイル (必須)"
-
-msgid "input file name (default stdin)"
-msgstr "入力ファイル名 (デフォルト stdin)"
-
-msgid "Usage: symcryptrun [options] (-h for help)"
-msgstr "使い方: symcryption [オプション] (ヘルプは -h)"
-
-msgid ""
-"Syntax: symcryptrun --class CLASS --program PROGRAM --keyfile KEYFILE "
-"[options...] COMMAND [inputfile]\n"
-"Call a simple symmetric encryption tool\n"
-msgstr ""
-"形式: symcryptrun --class CLASS --program PROGRAM --keyfile KEYFILE [オプショ"
-"ン...] COMMAND [入力ファイル]\n"
-"シンプルな共通鍵暗号ツールを呼び出す\n"
-
-#, c-format
-msgid "%s on %s aborted with status %i\n"
-msgstr "%s (%s の)がステイタス%iで中止されました\n"
-
-#, c-format
-msgid "%s on %s failed with status %i\n"
-msgstr "%s (%s の)がステイタス%iで失敗しました\n"
-
-#, c-format
-msgid "can't create temporary directory '%s': %s\n"
-msgstr "一時ディレクトリ'%s'が作成できません: %s\n"
-
-#, c-format
-msgid "could not open %s for writing: %s\n"
-msgstr "%sを書き込みでオープンできませんでした: %s\n"
-
-#, c-format
-msgid "error writing to %s: %s\n"
-msgstr "'%s'の書き込みエラー: %s\n"
-
-#, c-format
-msgid "error reading from %s: %s\n"
-msgstr "'%s'の読み込みエラー: %s\n"
-
-#, c-format
-msgid "error closing %s: %s\n"
-msgstr "'%s'でクローズのエラー: %s\n"
-
-#, c-format
-msgid "no --program option provided\n"
-msgstr "--programオプションが指定されていません\n"
-
-#, c-format
-msgid "only --decrypt and --encrypt are supported\n"
-msgstr "--decryptと--encryptだけがサポートされています\n"
-
-#, c-format
-msgid "no --keyfile option provided\n"
-msgstr "--keyfileオプションが与えられていません\n"
-
-#, c-format
-msgid "cannot allocate args vector\n"
-msgstr "引数ベクタが確保できません\n"
-
-#, c-format
-msgid "could not create pipe: %s\n"
-msgstr "パイプが作成できませんでした: %s\n"
-
-#, c-format
-msgid "could not create pty: %s\n"
-msgstr "ptyが作成できませんでした: %s\n"
-
-#, c-format
-msgid "could not fork: %s\n"
-msgstr "fork できませんでした: %s\n"
-
-#, c-format
-msgid "execv failed: %s\n"
-msgstr "execv が失敗しました: %s\n"
-
-#, c-format
-msgid "select failed: %s\n"
-msgstr "select が失敗しました: %s\n"
-
-#, c-format
-msgid "read failed: %s\n"
-msgstr "read が失敗しました: %s\n"
-
-#, c-format
-msgid "pty read failed: %s\n"
-msgstr "pty read が失敗しました: %s\n"
-
-#, c-format
-msgid "waitpid failed: %s\n"
-msgstr "waitpid が失敗しました: %s\n"
-
-#, c-format
-msgid "child aborted with status %i\n"
-msgstr "子プロセスがステイタス %i で中止されました\n"
-
-#, c-format
-msgid "cannot allocate infile string: %s\n"
-msgstr "infileの文字列が確保できません: %s\n"
-
-#, c-format
-msgid "cannot allocate outfile string: %s\n"
-msgstr "outfileの文字列を確保できません: %s\n"
-
-#, c-format
-msgid "either %s or %s must be given\n"
-msgstr "%s か %s のどちらかが与えられる必要があります\n"
-
-#, c-format
-msgid "no class provided\n"
-msgstr "クラスが与えられていません\n"
-
-#, c-format
-msgid "class %s is not supported\n"
-msgstr "クラス%sはサポートされていません\n"
-
 msgid "Usage: gpg-check-pattern [options] patternfile (-h for help)\n"
 msgstr "使い方: gpg-check-pattern [オプション] patternfile (ヘルプは -h)\n"
 
@@ -8690,6 +8621,127 @@ msgid ""
 msgstr ""
 "形式: gpg-check-pattern [オプション] パターンファイル\n"
 "パターンファイルに対して標準入力のパスフレーズを確認する\n"
+
+#~ msgid "Note: old default options file '%s' ignored\n"
+#~ msgstr ""
+#~ "注意: 以前デフォルトだったオプション・ファイル'%s'は、無視されます\n"
+
+#~ msgid ""
+#~ "@\n"
+#~ "Commands:\n"
+#~ " "
+#~ msgstr ""
+#~ "@\n"
+#~ "@コマンド:\n"
+#~ " "
+
+#~ msgid "decryption modus"
+#~ msgstr "復号方式"
+
+#~ msgid "encryption modus"
+#~ msgstr "暗号方式"
+
+#~ msgid "tool class (confucius)"
+#~ msgstr "ツール・クラス (confucius)"
+
+#~ msgid "program filename"
+#~ msgstr "program [ファイル名]"
+
+#~ msgid "secret key file (required)"
+#~ msgstr "秘密鍵ファイル (必須)"
+
+#~ msgid "input file name (default stdin)"
+#~ msgstr "入力ファイル名 (デフォルト stdin)"
+
+#~ msgid "Usage: symcryptrun [options] (-h for help)"
+#~ msgstr "使い方: symcryption [オプション] (ヘルプは -h)"
+
+#~ msgid ""
+#~ "Syntax: symcryptrun --class CLASS --program PROGRAM --keyfile KEYFILE "
+#~ "[options...] COMMAND [inputfile]\n"
+#~ "Call a simple symmetric encryption tool\n"
+#~ msgstr ""
+#~ "形式: symcryptrun --class CLASS --program PROGRAM --keyfile KEYFILE [オプ"
+#~ "ション...] COMMAND [入力ファイル]\n"
+#~ "シンプルな共通鍵暗号ツールを呼び出す\n"
+
+#~ msgid "%s on %s aborted with status %i\n"
+#~ msgstr "%s (%s の)がステイタス%iで中止されました\n"
+
+#~ msgid "%s on %s failed with status %i\n"
+#~ msgstr "%s (%s の)がステイタス%iで失敗しました\n"
+
+#~ msgid "can't create temporary directory '%s': %s\n"
+#~ msgstr "一時ディレクトリ'%s'が作成できません: %s\n"
+
+#~ msgid "could not open %s for writing: %s\n"
+#~ msgstr "%sを書き込みでオープンできませんでした: %s\n"
+
+#~ msgid "error writing to %s: %s\n"
+#~ msgstr "'%s'の書き込みエラー: %s\n"
+
+#~ msgid "error reading from %s: %s\n"
+#~ msgstr "'%s'の読み込みエラー: %s\n"
+
+#~ msgid "error closing %s: %s\n"
+#~ msgstr "'%s'でクローズのエラー: %s\n"
+
+#~ msgid "no --program option provided\n"
+#~ msgstr "--programオプションが指定されていません\n"
+
+#~ msgid "only --decrypt and --encrypt are supported\n"
+#~ msgstr "--decryptと--encryptだけがサポートされています\n"
+
+#~ msgid "no --keyfile option provided\n"
+#~ msgstr "--keyfileオプションが与えられていません\n"
+
+#~ msgid "cannot allocate args vector\n"
+#~ msgstr "引数ベクタが確保できません\n"
+
+#~ msgid "could not create pipe: %s\n"
+#~ msgstr "パイプが作成できませんでした: %s\n"
+
+#~ msgid "could not create pty: %s\n"
+#~ msgstr "ptyが作成できませんでした: %s\n"
+
+#~ msgid "could not fork: %s\n"
+#~ msgstr "fork できませんでした: %s\n"
+
+#~ msgid "execv failed: %s\n"
+#~ msgstr "execv が失敗しました: %s\n"
+
+#~ msgid "select failed: %s\n"
+#~ msgstr "select が失敗しました: %s\n"
+
+#~ msgid "read failed: %s\n"
+#~ msgstr "read が失敗しました: %s\n"
+
+#~ msgid "pty read failed: %s\n"
+#~ msgstr "pty read が失敗しました: %s\n"
+
+#~ msgid "waitpid failed: %s\n"
+#~ msgstr "waitpid が失敗しました: %s\n"
+
+#~ msgid "child aborted with status %i\n"
+#~ msgstr "子プロセスがステイタス %i で中止されました\n"
+
+#~ msgid "cannot allocate infile string: %s\n"
+#~ msgstr "infileの文字列が確保できません: %s\n"
+
+#~ msgid "cannot allocate outfile string: %s\n"
+#~ msgstr "outfileの文字列を確保できません: %s\n"
+
+#~ msgid "either %s or %s must be given\n"
+#~ msgstr "%s か %s のどちらかが与えられる必要があります\n"
+
+#~ msgid "no class provided\n"
+#~ msgstr "クラスが与えられていません\n"
+
+#~ msgid "class %s is not supported\n"
+#~ msgstr "クラス%sはサポートされていません\n"
+
+#~ msgid " using certificate ID 0x%08lX\n"
+#~ msgstr " 証明書 ID 0x%08lXを用います\n"
 
 #~ msgid "male"
 #~ msgstr "男"
@@ -8791,38 +8843,6 @@ msgstr ""
 
 #~ msgid "Error: Private DO too long (limit is %d characters).\n"
 #~ msgstr "エラー: プライベート DOが長すぎます (上限%d文字)。\n"
-
-#~ msgid ""
-#~ "can't check signature with unsupported public-key algorithm (%d): %s.\n"
-#~ msgstr ""
-#~ "サポートしていない公開鍵アルゴリズム(%d)の署名は確認できません: %s.\n"
-
-#~ msgid ""
-#~ "can't check signature with unsupported message-digest algorithm %d: %s.\n"
-#~ msgstr ""
-#~ "サポートしていないメッセージ・ダイジェスト(%d)の署名は確認できません: "
-#~ "%s.\n"
-
-#~ msgid " (reordered signatures follow)"
-#~ msgstr "(順番を変えた署名が続きます)"
-
-#~ msgid "key %s:\n"
-#~ msgstr "鍵  %s:\n"
-
-#~ msgid "%d duplicate signature removed\n"
-#~ msgid_plural "%d duplicate signatures removed\n"
-#~ msgstr[0] "%d個の重複した署名が除去されました\n"
-
-#~ msgid "%d signature reordered\n"
-#~ msgid_plural "%d signatures reordered\n"
-#~ msgstr[0] "%d個の正しい署名\n"
-
-#~ msgid ""
-#~ "Warning: errors found and only checked self-signatures, run '%s' to check "
-#~ "all signatures.\n"
-#~ msgstr ""
-#~ "警告: エラーがあり、自己署名だけ確認しました。'%s'を実行してすべての署名を"
-#~ "確認ください。\n"
 
 #~ msgid ", "
 #~ msgstr ", "

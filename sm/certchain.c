@@ -38,6 +38,10 @@
 #include "../common/tlv.h"
 
 
+/* The OID for the authorityInfoAccess's caIssuers.  */
+static const char oidstr_caIssuers[] = "1.3.6.1.5.5.7.48.2";
+
+
 /* Object to keep track of certain root certificates. */
 struct marktrusted_info_s
 {
@@ -304,7 +308,7 @@ check_cert_policy (ksba_cert_t cert, int listmode, estream_t fplist)
 {
   gpg_error_t err;
   char *policies;
-  FILE *fp;
+  estream_t fp;
   int any_critical;
 
   err = ksba_cert_get_cert_policies (cert, &policies);
@@ -336,7 +340,7 @@ check_cert_policy (ksba_cert_t cert, int listmode, estream_t fplist)
       return 0;
     }
 
-  fp = fopen (opt.policy_file, "r");
+  fp = es_fopen (opt.policy_file, "r");
   if (!fp)
     {
       if (opt.verbose || errno != ENOENT)
@@ -365,14 +369,14 @@ check_cert_policy (ksba_cert_t cert, int listmode, estream_t fplist)
       /* read line */
       do
         {
-          if (!fgets (line, DIM(line)-1, fp) )
+          if (!es_fgets (line, DIM(line)-1, fp) )
             {
-              gpg_error_t tmperr = gpg_error (gpg_err_code_from_errno (errno));
+              gpg_error_t tmperr = gpg_error_from_syserror ();
 
               xfree (policies);
-              if (feof (fp))
+              if (es_feof (fp))
                 {
-                  fclose (fp);
+                  es_fclose (fp);
                   /* With no critical policies this is only a warning */
                   if (!any_critical)
                     {
@@ -384,16 +388,16 @@ check_cert_policy (ksba_cert_t cert, int listmode, estream_t fplist)
                            _("certificate policy not allowed"));
                   return gpg_error (GPG_ERR_NO_POLICY_MATCH);
                 }
-              fclose (fp);
+              es_fclose (fp);
               return tmperr;
             }
 
           if (!*line || line[strlen(line)-1] != '\n')
             {
               /* eat until end of line */
-              while ( (c=getc (fp)) != EOF && c != '\n')
+              while ((c = es_getc (fp)) != EOF && c != '\n')
                 ;
-              fclose (fp);
+              es_fclose (fp);
               xfree (policies);
               return gpg_error (*line? GPG_ERR_LINE_TOO_LONG
                                      : GPG_ERR_INCOMPLETE_LINE);
@@ -413,7 +417,7 @@ check_cert_policy (ksba_cert_t cert, int listmode, estream_t fplist)
       p = strpbrk (allowed, " :\n");
       if (!*p || p == allowed)
         {
-          fclose (fp);
+          es_fclose (fp);
           xfree (policies);
           return gpg_error (GPG_ERR_CONFIGURATION);
         }
@@ -426,7 +430,7 @@ check_cert_policy (ksba_cert_t cert, int listmode, estream_t fplist)
           if (p[strlen (allowed)] != ':')
             continue; /* The length does not match. */
           /* Yep - it does match so return okay. */
-          fclose (fp);
+          es_fclose (fp);
           xfree (policies);
           return 0;
         }
@@ -573,6 +577,9 @@ struct find_up_store_certs_s
 {
   ctrl_t ctrl;
   int count;
+  unsigned int want_fpr:1;
+  unsigned int got_fpr:1;
+  unsigned char fpr[20];
 };
 
 static void
@@ -582,6 +589,13 @@ find_up_store_certs_cb (void *cb_value, ksba_cert_t cert)
 
   if (keydb_store_cert (parm->ctrl, cert, 1, NULL))
     log_error ("error storing issuer certificate as ephemeral\n");
+  else if (parm->want_fpr && !parm->got_fpr)
+    {
+      if (!gpgsm_get_fingerprint (cert, 0, parm->fpr, NULL))
+        log_error (_("failed to get the fingerprint\n"));
+      else
+        parm->got_fpr = 1;
+    }
   parm->count++;
 }
 
@@ -602,6 +616,8 @@ find_up_external (ctrl_t ctrl, KEYDB_HANDLE kh,
   const char *s;
 
   find_up_store_certs_parm.ctrl = ctrl;
+  find_up_store_certs_parm.want_fpr = 0;
+  find_up_store_certs_parm.got_fpr = 0;
   find_up_store_certs_parm.count = 0;
 
   if (opt.verbose)
@@ -620,7 +636,7 @@ find_up_external (ctrl_t ctrl, KEYDB_HANDLE kh,
   add_to_strlist (&names, pattern);
   xfree (pattern);
 
-  rc = gpgsm_dirmngr_lookup (ctrl, names, 0, find_up_store_certs_cb,
+  rc = gpgsm_dirmngr_lookup (ctrl, names, NULL, 0, find_up_store_certs_cb,
                              &find_up_store_certs_parm);
   free_strlist (names);
 
@@ -650,6 +666,105 @@ find_up_external (ctrl_t ctrl, KEYDB_HANDLE kh,
       keydb_set_ephemeral (kh, old);
     }
   return rc;
+}
+
+
+/* Helper for find_up().  Locate the certificate for CERT using the
+ * caIssuer from the authorityInfoAccess.  KH is the keydb context we
+ * are currently using.  On success 0 is returned and the certificate
+ * may be retrieved from the keydb using keydb_get_cert().  If no
+ * suitable authorityInfoAccess is encoded in the certificate
+ * GPG_ERR_NOT_FOUND is returned. */
+static gpg_error_t
+find_up_via_auth_info_access (ctrl_t ctrl, KEYDB_HANDLE kh, ksba_cert_t cert)
+{
+  gpg_error_t err;
+  struct find_up_store_certs_s find_up_store_certs_parm;
+  char *url, *ldapurl;
+  int idx, i;
+  char *oid;
+  ksba_name_t name;
+
+  find_up_store_certs_parm.ctrl = ctrl;
+  find_up_store_certs_parm.want_fpr = 1;
+  find_up_store_certs_parm.got_fpr = 0;
+  find_up_store_certs_parm.count = 0;
+
+  /* Find suitable URLs; if there is a http scheme we prefer that.  */
+  url = ldapurl = NULL;
+  for (idx=0;
+       !url && !(err = ksba_cert_get_authority_info_access (cert, idx,
+                                                            &oid, &name));
+       idx++)
+    {
+      if (!strcmp (oid, oidstr_caIssuers))
+        {
+          for (i=0; !url && ksba_name_enum (name, i); i++)
+            {
+              char *p = ksba_name_get_uri (name, i);
+              if (p)
+                {
+                  if (!strncmp (p, "http:", 5) || !strncmp (p, "https:", 6))
+                    url = p;
+                  else if (ldapurl)
+                    xfree (p); /* We already got one.  */
+                  else if (!strncmp (p, "ldap:",5) || !strncmp (p, "ldaps:",6))
+                    ldapurl = p;
+                }
+              else
+                xfree (p);
+            }
+        }
+      ksba_name_release (name);
+      ksba_free (oid);
+    }
+  if (err && gpg_err_code (err) != GPG_ERR_EOF)
+    {
+      log_error (_("can't get authorityInfoAccess: %s\n"), gpg_strerror (err));
+      return err;
+    }
+  if (!url && ldapurl)
+    {
+      /* No HTTP scheme; fallback to LDAP if available.  */
+      url = ldapurl;
+      ldapurl = NULL;
+    }
+  xfree (ldapurl);
+  if (!url)
+    return gpg_error (GPG_ERR_NOT_FOUND);
+
+  if (opt.verbose)
+    log_info ("looking up issuer via authorityInfoAccess.caIssuers\n");
+
+  err = gpgsm_dirmngr_lookup (ctrl, NULL, url, 0, find_up_store_certs_cb,
+                              &find_up_store_certs_parm);
+
+  /* Although we might receive several certificates we use only the
+   * first one.  Or more exacty the first one for which we retrieved
+   * the fingerprint.  */
+  if (opt.verbose)
+    log_info ("number of caIssuers found: %d\n",
+              find_up_store_certs_parm.count);
+  if (err)
+    {
+      log_error ("external URL lookup failed: %s\n", gpg_strerror (err));
+      err = gpg_error (GPG_ERR_NOT_FOUND);
+    }
+  else if (!find_up_store_certs_parm.got_fpr)
+    err = gpg_error (GPG_ERR_NOT_FOUND);
+  else
+    {
+      int old;
+      /* The retrieved certificates are currently stored in the
+       * ephemeral key DB, so we temporary switch to ephemeral
+       * mode. */
+      old = keydb_set_ephemeral (kh, 1);
+      keydb_search_reset (kh);
+      err = keydb_search_fpr (ctrl, kh, find_up_store_certs_parm.fpr);
+      keydb_set_ephemeral (kh, old);
+    }
+
+  return err;
 }
 
 
@@ -693,7 +808,7 @@ find_up_dirmngr (ctrl_t ctrl, KEYDB_HANDLE kh,
   add_to_strlist (&names, pattern);
   xfree (pattern);
 
-  rc = gpgsm_dirmngr_lookup (ctrl, names, 1, find_up_store_certs_cb,
+  rc = gpgsm_dirmngr_lookup (ctrl, names, NULL, 1, find_up_store_certs_cb,
                              &find_up_store_certs_parm);
   free_strlist (names);
 
@@ -813,11 +928,24 @@ find_up (ctrl_t ctrl, KEYDB_HANDLE kh,
         }
 
       /* If we still didn't found it, try an external lookup.  */
-      if (rc == -1 && opt.auto_issuer_key_retrieve && !find_next)
+      if (rc == -1 && !find_next && !ctrl->offline)
         {
-          rc = find_up_external (ctrl, kh, issuer, keyid);
-          if (!rc && DBG_X509)
-            log_debug ("  found via authid and external lookup\n");
+          /* We allow AIA also if CRLs are enabled; both can be used
+           * as a web bug so it does not make sense to not use AIA if
+           * CRL checks are enabled.  */
+          if ((opt.auto_issuer_key_retrieve || !opt.no_crl_check)
+              && !find_up_via_auth_info_access (ctrl, kh, cert))
+            {
+              if (DBG_X509)
+                log_debug ("  found via authorityInfoAccess.caIssuers\n");
+              rc = 0;
+            }
+          else if (opt.auto_issuer_key_retrieve)
+            {
+              rc = find_up_external (ctrl, kh, issuer, keyid);
+              if (!rc && DBG_X509)
+                log_debug ("  found via authid and external lookup\n");
+            }
         }
 
 
@@ -876,11 +1004,21 @@ find_up (ctrl_t ctrl, KEYDB_HANDLE kh,
     }
 
   /* Still not found.  If enabled, try an external lookup.  */
-  if (rc == -1 && opt.auto_issuer_key_retrieve && !find_next)
+  if (rc == -1 && !find_next && !ctrl->offline)
     {
-      rc = find_up_external (ctrl, kh, issuer, NULL);
-      if (!rc && DBG_X509)
-        log_debug ("  found via issuer and external lookup\n");
+      if ((opt.auto_issuer_key_retrieve || !opt.no_crl_check)
+          && !find_up_via_auth_info_access (ctrl, kh, cert))
+        {
+          if (DBG_X509)
+            log_debug ("  found via authorityInfoAccess.caIssuers\n");
+          rc = 0;
+        }
+      else if (opt.auto_issuer_key_retrieve)
+        {
+          rc = find_up_external (ctrl, kh, issuer, NULL);
+          if (!rc && DBG_X509)
+            log_debug ("  found via issuer and external lookup\n");
+        }
     }
 
   return rc;
@@ -1052,6 +1190,24 @@ is_cert_still_valid (ctrl_t ctrl, int force_ocsp, int lm, estream_t fp,
       audit_log_ok (ctrl->audit, AUDIT_CRL_CHECK,
                     gpg_error (GPG_ERR_NOT_ENABLED));
       return 0;
+    }
+
+
+  if (!(force_ocsp || ctrl->use_ocsp)
+      && !opt.enable_issuer_based_crl_check)
+    {
+      err = ksba_cert_get_crl_dist_point (subject_cert, 0, NULL, NULL, NULL);
+      if (gpg_err_code (err) == GPG_ERR_EOF)
+        {
+          /* No DP specified in the certificate.  Thus the CA does not
+           * consider a CRL useful and the user of the certificate
+           * also does not consider this to be a critical thing.  In
+           * this case we can conclude that the certificate shall not
+           * be revocable.  Note that we reach this point here only if
+           * no OCSP responder shall be used.  */
+          audit_log_ok (ctrl->audit, AUDIT_CRL_CHECK, gpg_error (GPG_ERR_TRUE));
+          return 0;
+        }
     }
 
   err = gpgsm_dirmngr_isvalid (ctrl,

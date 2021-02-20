@@ -25,6 +25,7 @@
 #include <assert.h>
 
 #include "keybox-defs.h"
+#include "../common/sysutils.h"
 #include "../common/mischelp.h"
 
 static KB_NAME kb_names;
@@ -80,7 +81,7 @@ keybox_is_writable (void *token)
 {
   KB_NAME r = token;
 
-  return r? !access (r->fname, W_OK) : 0;
+  return r? !gnupg_access (r->fname, W_OK) : 0;
 }
 
 
@@ -179,7 +180,7 @@ keybox_release (KEYBOX_HANDLE hd)
   _keybox_release_blob (hd->saved_found.blob);
   if (hd->fp)
     {
-      fclose (hd->fp);
+      es_fclose (hd->fp);
       hd->fp = NULL;
     }
   xfree (hd->word_match.name);
@@ -252,11 +253,11 @@ _keybox_close_file (KEYBOX_HANDLE hd)
       {
         if (roverhd->fp)
           {
-            fclose (roverhd->fp);
+            es_fclose (roverhd->fp);
             roverhd->fp = NULL;
           }
       }
-  assert (!hd->fp);
+  log_assert (!hd->fp);
 }
 
 

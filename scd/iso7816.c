@@ -97,12 +97,21 @@ map_sw (int sw)
     case SW_HOST_ABORTED:        ec = GPG_ERR_INV_RESPONSE; break;
     case SW_HOST_NO_PINPAD:      ec = GPG_ERR_NOT_SUPPORTED; break;
     case SW_HOST_CANCELLED:      ec = GPG_ERR_CANCELED; break;
+    case SW_HOST_USB_OTHER:      ec = GPG_ERR_EIO; break;
+    case SW_HOST_USB_IO:         ec = GPG_ERR_EIO; break;
+    case SW_HOST_USB_ACCESS:     ec = GPG_ERR_EACCES; break;
+    case SW_HOST_USB_NO_DEVICE:  ec = GPG_ERR_ENODEV; break;
+    case SW_HOST_USB_BUSY:       ec = GPG_ERR_EBUSY; break;
+    case SW_HOST_USB_TIMEOUT:    ec = GPG_ERR_TIMEOUT; break;
+    case SW_HOST_USB_OVERFLOW:   ec = GPG_ERR_EOVERFLOW; break;
 
     default:
       if ((sw & 0x010000))
         ec = GPG_ERR_GENERAL; /* Should not happen. */
       else if ((sw & 0xff00) == SW_MORE_DATA)
         ec = 0; /* This should actually never been seen here. */
+      else if ((sw & 0xfff0) == 0x63C0)
+        ec = GPG_ERR_BAD_PIN;
       else
         ec = GPG_ERR_CARD;
     }
@@ -135,6 +144,32 @@ iso7816_select_application (int slot, const char *aid, size_t aidlen,
   int sw;
   sw = apdu_send_simple (slot, 0, 0x00, CMD_SELECT_FILE, 4,
                          (flags&1)? 0 :0x0c, aidlen, aid);
+  return map_sw (sw);
+}
+
+
+/* This is the same as iso7816_select_application but may return data
+ * at RESULT,RESULTLEN).  */
+gpg_error_t
+iso7816_select_application_ext (int slot, const char *aid, size_t aidlen,
+                                unsigned int flags,
+                                unsigned char **result, size_t *resultlen)
+{
+  int sw;
+  sw = apdu_send (slot, 0, 0x00, CMD_SELECT_FILE, 4,
+                  (flags&1)? 0:0x0c, aidlen, aid,
+                  result, resultlen);
+  return map_sw (sw);
+}
+
+
+/* Simple MF selection as supported by some cards.  */
+gpg_error_t
+iso7816_select_mf (int slot)
+{
+  int sw;
+
+  sw = apdu_send_simple (slot, 0, 0x00, CMD_SELECT_FILE, 0x000, 0x0c, -1, NULL);
   return map_sw (sw);
 }
 
@@ -288,6 +323,39 @@ iso7816_verify (int slot, int chvno, const char *chv, size_t chvlen)
   sw = apdu_send_simple (slot, 0, 0x00, CMD_VERIFY, 0, chvno, chvlen, chv);
   return map_sw (sw);
 }
+
+
+/* Some cards support a VERIFY command variant to check the status of
+ * the the CHV without a need to try a CHV.  In contrast to the other
+ * functions this function returns the special codes ISO7816_VERIFY_*
+ * or a non-negative number with the left attempts.  */
+int
+iso7816_verify_status (int slot, int chvno)
+{
+  unsigned char apdu[4];
+  unsigned int sw;
+  int result;
+
+  apdu[0] = 0x00;
+  apdu[1] = ISO7816_VERIFY;
+  apdu[2] = 0x00;
+  apdu[3] = chvno;
+  if (!iso7816_apdu_direct (slot, apdu, 4, 0, &sw, NULL, NULL))
+    result = ISO7816_VERIFY_NOT_NEEDED;  /* Not returned by all cards.  */
+  else if (sw == 0x6a88 || sw == 0x6a80)
+    result = ISO7816_VERIFY_NO_PIN;
+  else if (sw == 0x6983)
+    result = ISO7816_VERIFY_BLOCKED;
+  else if (sw == 0x6985)
+    result = ISO7816_VERIFY_NULLPIN;     /* TCOS card  */
+  else if ((sw & 0xfff0) == 0x63C0)
+    result = (sw & 0x000f);
+  else
+    result = ISO7816_VERIFY_ERROR;
+
+  return result;
+}
+
 
 /* Perform a CHANGE_REFERENCE_DATA command on SLOT for the card holder
    verification vector CHVNO.  With PININFO non-NULL the pinpad of the
@@ -722,8 +790,9 @@ iso7816_get_challenge (int slot, int length, unsigned char *buffer)
    stored in a newly allocated buffer at the address passed by RESULT.
    Returns the length of this data at the address of RESULTLEN. */
 gpg_error_t
-iso7816_read_binary (int slot, size_t offset, size_t nmax,
-                     unsigned char **result, size_t *resultlen)
+iso7816_read_binary_ext (int slot, int extended_mode,
+                         size_t offset, size_t nmax,
+                         unsigned char **result, size_t *resultlen)
 {
   int sw;
   unsigned char *buffer;
@@ -746,13 +815,13 @@ iso7816_read_binary (int slot, size_t offset, size_t nmax,
       buffer = NULL;
       bufferlen = 0;
       n = read_all? 0 : nmax;
-      sw = apdu_send_le (slot, 0, 0x00, CMD_READ_BINARY,
+      sw = apdu_send_le (slot, extended_mode, 0x00, CMD_READ_BINARY,
                          ((offset>>8) & 0xff), (offset & 0xff) , -1, NULL,
                          n, &buffer, &bufferlen);
       if ( SW_EXACT_LENGTH_P(sw) )
         {
           n = (sw & 0x00ff);
-          sw = apdu_send_le (slot, 0, 0x00, CMD_READ_BINARY,
+          sw = apdu_send_le (slot, extended_mode, 0x00, CMD_READ_BINARY,
                              ((offset>>8) & 0xff), (offset & 0xff) , -1, NULL,
                              n, &buffer, &bufferlen);
         }
@@ -810,6 +879,15 @@ iso7816_read_binary (int slot, size_t offset, size_t nmax,
 
   return 0;
 }
+
+
+gpg_error_t
+iso7816_read_binary (int slot, size_t offset, size_t nmax,
+                     unsigned char **result, size_t *resultlen)
+{
+  return iso7816_read_binary_ext (slot, 0, offset, nmax, result, resultlen);
+}
+
 
 /* Perform a READ RECORD command. RECNO gives the record number to
    read with 0 indicating the current record.  RECCOUNT must be 1 (not

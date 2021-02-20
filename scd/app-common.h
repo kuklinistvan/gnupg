@@ -119,9 +119,26 @@ struct app_ctx_s {
   } fnc;
 };
 
+
+/* Helper to get the slot from an APP object. */
+static inline int
+app_get_slot (app_t app)
+{
+  /* Note that this is a similar function of the one in 2.3 which we
+   * use to make back porting easier.  */
+  if (app)
+    return app->slot;
+  return -1;
+}
+
+
 /*-- app-help.c --*/
 unsigned int app_help_count_bits (const unsigned char *a, size_t len);
-gpg_error_t app_help_get_keygrip_string (ksba_cert_t cert, char *hexkeygrip);
+gpg_error_t app_help_get_keygrip_string_pk (const void *pk, size_t pklen,
+                                            char *hexkeygrip,
+                                            gcry_sexp_t *r_pkey);
+gpg_error_t app_help_get_keygrip_string (ksba_cert_t cert, char *hexkeygrip,
+                                         gcry_sexp_t *r_pkey);
 size_t app_help_read_length_of_cert (int slot, int fid, size_t *r_certoff);
 
 

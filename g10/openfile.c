@@ -324,7 +324,7 @@ get_matching_datafile (const char *sigfilename)
 
       fname = xstrdup (sigfilename);
       fname[len-(fname[len-1]=='n'?5:4)] = 0 ;
-      if (access (fname, R_OK ))
+      if (gnupg_access (fname, R_OK ))
         {
           /* Not found or other error.  */
           xfree (fname);
@@ -367,36 +367,18 @@ open_sigfile (const char *sigfilename, progress_filter_context_t *pfx)
 }
 
 
+/* Create the directory only if the supplied directory name is the
+   same as the default one.  This way we avoid to create arbitrary
+   directories when a non-default home directory is used.  To cope
+   with HOME, we do compare only the suffix if we see that the default
+   homedir does start with a tilde.  */
 void
 try_make_homedir (const char *fname)
 {
-  const char *defhome = standard_homedir ();
-
-  /* Create the directory only if the supplied directory name is the
-     same as the default one.  This way we avoid to create arbitrary
-     directories when a non-default home directory is used.  To cope
-     with HOME, we do compare only the suffix if we see that the
-     default homedir does start with a tilde.  */
   if ( opt.dry_run || opt.no_homedir_creation )
     return;
 
-  if (
-#ifdef HAVE_W32_SYSTEM
-      ( !compare_filenames (fname, defhome) )
-#else
-      ( *defhome == '~'
-        && (strlen(fname) >= strlen (defhome+1)
-            && !strcmp(fname+strlen(fname)-strlen(defhome+1), defhome+1 ) ))
-      || (*defhome != '~'  && !compare_filenames( fname, defhome ) )
-#endif
-      )
-    {
-      if (gnupg_mkdir (fname, "-rwx"))
-        log_fatal ( _("can't create directory '%s': %s\n"),
-                    fname, strerror(errno) );
-      else if (!opt.quiet )
-        log_info ( _("directory '%s' created\n"), fname );
-    }
+  gnupg_maybe_make_homedir (fname, opt.quiet);
 }
 
 
@@ -409,7 +391,7 @@ get_openpgp_revocdir (const char *home)
   struct stat statbuf;
 
   fname = make_filename (home, GNUPG_OPENPGP_REVOC_DIR, NULL);
-  if (stat (fname, &statbuf) && errno == ENOENT)
+  if (gnupg_stat (fname, &statbuf) && errno == ENOENT)
     {
       if (gnupg_mkdir (fname, "-rwx"))
         log_error (_("can't create directory '%s': %s\n"),

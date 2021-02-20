@@ -963,6 +963,7 @@ ks_put_inq_cb (void *opaque, const char *line)
     {
       kbnode_t node;
       estream_t fp;
+      char hexfpr[2*MAX_FINGERPRINT_LEN+1];
 
       /* Parse the keyblock and send info lines back to the server.  */
       fp = es_fopenmem (0, "rw,samethread");
@@ -1020,6 +1021,8 @@ ks_put_inq_cb (void *opaque, const char *line)
 			       nbits_from_pk (pk), pk->pubkey_algo,
 			       pk->keyid, pk->timestamp, pk->expiredate,
 			       NULL);
+                es_fprintf (fp, "fpr:::::::::%s:\n",
+                            hexfingerprint (pk, hexfpr, sizeof hexfpr));
               }
               break;
 
@@ -1044,21 +1047,6 @@ ks_put_inq_cb (void *opaque, const char *line)
 				   uid->created, uid->expiredate,
 				   uid->name);
                   }
-              }
-              break;
-
-              /* This bit is really for the benefit of people who
-                 store their keys in LDAP servers.  It makes it easy
-                 to do queries for things like "all keys signed by
-                 Isabella".  */
-            case PKT_SIGNATURE:
-              {
-                PKT_signature *sig = node->pkt->pkt.signature;
-
-                if (IS_UID_SIG (sig))
-		  record_output (fp, node->pkt->pkttype, NULL,
-				 -1, -1, sig->keyid,
-				 sig->timestamp, sig->expiredate, NULL);
               }
               break;
 

@@ -2,13 +2,13 @@
 # Copyright (C) 1998, 1999, 2000, 2001, 2002,
 #               2007 Free Software Foundation, Inc.
 # Janusz A. Urbanowicz <alex@bofh.net.pl>, 1999, 2000, 2001, 2002, 2003-2004
-# Jakub Bogusz <qboosh@pld-linux.org>, 2003-2019.
+# Jakub Bogusz <qboosh@pld-linux.org>, 2003-2020.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: gnupg-2.2.16\n"
+"Project-Id-Version: gnupg-2.2.24\n"
 "Report-Msgid-Bugs-To: translations@gnupg.org\n"
-"PO-Revision-Date: 2019-05-29 17:45+0200\n"
+"PO-Revision-Date: 2020-11-18 17:35+0100\n"
 "Last-Translator: Jakub Bogusz <qboosh@pld-linux.org>\n"
 "Language-Team: Polish <translation-team-pl@lists.sourceforge.net>\n"
 "Language: pl\n"
@@ -95,6 +95,9 @@ msgstr "nie pasują - proszę spróbować jeszcze raz"
 #. the pinentry.  The %s is the actual error message, the
 #. two %d give the current and maximum number of tries.
 #. Do not translate the "SETERROR" keyword.
+#. TRANSLATORS: The string is appended to an error message in
+#. the pinentry.  The %s is the actual error message, the
+#. two %d give the current and maximum number of tries.
 #, c-format
 msgid "SETERROR %s (try %d of %d)"
 msgstr "SETERROR %s (próba %d z %d)"
@@ -398,14 +401,6 @@ msgstr "podano błędny poziom diagnostyki ,,%s''\n"
 #, c-format
 msgid "selected digest algorithm is invalid\n"
 msgstr "wybrany algorytm skrótów wiadomości jest niepoprawny\n"
-
-#, c-format
-msgid "Note: no default option file '%s'\n"
-msgstr "Uwaga: brak domyślnego pliku opcji ,,%s''\n"
-
-#, c-format
-msgid "option file '%s': %s\n"
-msgstr "plik opcji ,,%s'': %s\n"
 
 #, c-format
 msgid "reading options from '%s'\n"
@@ -1011,8 +1006,26 @@ msgstr "błędne polecenie"
 msgid "invalid alias definition"
 msgstr "błędna definicja aliasu"
 
+msgid "permission error"
+msgstr ""
+
 msgid "out of core"
 msgstr "brak pamięci"
+
+#, fuzzy
+#| msgid "invalid command"
+msgid "invalid meta command"
+msgstr "błędne polecenie"
+
+#, fuzzy
+#| msgid "unknown command '%s'\n"
+msgid "unknown meta command"
+msgstr "nieznane polecenie ,,%s''\n"
+
+#, fuzzy
+#| msgid "unexpected armor: "
+msgid "unexpected meta command"
+msgstr "nieoczekiwane opakowanie: "
 
 msgid "invalid option"
 msgstr "błędna opcja"
@@ -1042,12 +1055,20 @@ msgid "command \"%.50s\" is ambiguous\n"
 msgstr "polecenie ,,%.50s'' jest niejednoznaczne\n"
 
 #, c-format
-msgid "out of core\n"
-msgstr "brak pamięci\n"
-
-#, c-format
 msgid "invalid option \"%.50s\"\n"
 msgstr "błędna opcja ,,%.50s''\n"
+
+#, c-format
+msgid "Note: no default option file '%s'\n"
+msgstr "Uwaga: brak domyślnego pliku opcji ,,%s''\n"
+
+#, c-format
+msgid "option file '%s': %s\n"
+msgstr "plik opcji ,,%s'': %s\n"
+
+#, c-format
+msgid "Note: ignoring option \"--%s\" due to global config\n"
+msgstr ""
 
 #, c-format
 msgid "conversion from '%s' to '%s' not available\n"
@@ -1239,42 +1260,34 @@ msgstr "%s nie jest zgodny z trybem %s\n"
 msgid "no dirmngr running in this session\n"
 msgstr "brak działającego dirmngr w tej sesji\n"
 
-#, fuzzy, c-format
-#| msgid "option '%s' may not be used in %s mode\n"
+#, c-format
 msgid "keyserver option \"%s\" may not be used in %s mode\n"
-msgstr "opcja ,,%s'' nie może być używana w trybie %s\n"
+msgstr "opcja serwera kluczy ,,%s'' nie może być używana w trybie %s\n"
 
 msgid "WKD uses a cached result"
-msgstr ""
+msgstr "WKD używa zapamiętanego wyniku"
 
 msgid "Tor is not running"
-msgstr ""
+msgstr "Tor nie działa"
 
-#, fuzzy
-#| msgid "\"%s\" is not a proper fingerprint\n"
 msgid "Tor is not properly configured"
-msgstr ",,%s'' nie jest właściwym odciskiem\n"
+msgstr "Tor nie jest właściwie skonfigurowany"
 
-#, fuzzy
-#| msgid "\"%s\" is not a proper fingerprint\n"
 msgid "DNS is not properly configured"
-msgstr ",,%s'' nie jest właściwym odciskiem\n"
+msgstr "DNS nie jest właściwie skonfigurowany"
 
 msgid "unacceptable HTTP redirect from server"
-msgstr ""
+msgstr "niedopuszczalne przekierowanie HTTP z serwera"
 
 msgid "unacceptable HTTP redirect from server was cleaned up"
-msgstr ""
+msgstr "niedopuszczalne przekierowanie HTTP z serwera zostało wyczyszczone"
 
-#, fuzzy
-#| msgid "generate a revocation certificate"
 msgid "server uses an invalid certificate"
-msgstr "tworzenie certyfikatu unieważnienia klucza"
+msgstr "serwer używa błędnego certyfikatu"
 
-#, fuzzy, c-format
-#| msgid "armor: %s\n"
+#, c-format
 msgid "Note: %s\n"
-msgstr "opakowanie: %s\n"
+msgstr "Uwaga: %s\n"
 
 #, c-format
 msgid "OpenPGP card not available: %s\n"
@@ -1303,10 +1316,10 @@ msgid "[not set]"
 msgstr "[nie ustawiono]"
 
 msgid "Mr."
-msgstr ""
+msgstr "Pan"
 
 msgid "Ms."
-msgstr ""
+msgstr "Pani"
 
 msgid "not forced"
 msgstr "nie wymuszono"
@@ -1360,7 +1373,7 @@ msgid "Error: invalid characters in preference string.\n"
 msgstr "Błąd: niewłaściwe znaki w tekście preferencji.\n"
 
 msgid "Salutation (M = Mr., F = Ms., or space): "
-msgstr ""
+msgstr "Tutuł (M = Pan, F = Pani lub spacja): "
 
 msgid "Error: invalid response.\n"
 msgstr "Błąd: niewłaściwa odpowiedź.\n"
@@ -1532,10 +1545,8 @@ msgstr "zmiana nazwy logowania"
 msgid "change the language preferences"
 msgstr "zmiana preferowanych języków"
 
-#, fuzzy
-#| msgid "change card holder's sex"
 msgid "change card holder's salutation"
-msgstr "zmiana płci posiadacza karty"
+msgstr "zmiana tytułu posiadacza karty"
 
 msgid "change a CA fingerprint"
 msgstr "zmiana odcisku CA"
@@ -1679,6 +1690,14 @@ msgid "WARNING: '%s' is an empty file\n"
 msgstr "OSTRZEŻENIE: plik ,,%s'' jest pusty\n"
 
 #, c-format
+msgid "cipher algorithm '%s' may not be used in %s mode\n"
+msgstr "szyfr ,,%s'' nie może być używany w trybie %s\n"
+
+#, c-format
+msgid "digest algorithm '%s' may not be used in %s mode\n"
+msgstr "algorytm skrótu ,,%s'' nie może być używany w trybie %s\n"
+
+#, c-format
 msgid "reading from '%s'\n"
 msgstr "odczyt z ,,%s''\n"
 
@@ -1688,10 +1707,6 @@ msgid ""
 msgstr ""
 "OSTRZEŻENIE: wymuszone użycie szyfru %s (%d) kłóci się z ustawieniami "
 "adresata\n"
-
-#, c-format
-msgid "cipher algorithm '%s' may not be used in %s mode\n"
-msgstr "szyfr ,,%s'' nie może być używany w trybie %s\n"
 
 #, c-format
 msgid "WARNING: key %s is not suitable for encryption in %s mode\n"
@@ -1948,6 +1963,9 @@ msgstr "szybkie złożenie podpisu na kluczu"
 
 msgid "quickly sign a key locally"
 msgstr "szybkie złożenie prywatnego podpisu na kluczu"
+
+msgid "quickly revoke a key signature"
+msgstr "szybkie unieważnienie podpisu klucza"
 
 msgid "sign a key"
 msgstr "złożenie podpisu na kluczu"
@@ -2216,10 +2234,6 @@ msgid "(use \"help\" to list choices)\n"
 msgstr "(,,help'' wyświetli listę wyborów)\n"
 
 #, c-format
-msgid "Note: old default options file '%s' ignored\n"
-msgstr "Uwaga: stary domyślny plik opcji ,,%s'' został zignorowany\n"
-
-#, c-format
 msgid "Note: %s is not for normal use!\n"
 msgstr "Uwaga: %s nie jest do normalnego użytku!\n"
 
@@ -2426,10 +2440,6 @@ msgid "%s does not yet work with %s\n"
 msgstr "%s jeszcze nie działa z %s!\n"
 
 #, c-format
-msgid "digest algorithm '%s' may not be used in %s mode\n"
-msgstr "algorytm skrótu ,,%s'' nie może być używany w trybie %s\n"
-
-#, c-format
 msgid "compression algorithm '%s' may not be used in %s mode\n"
 msgstr "algorytm kompresji ,,%s'' nie może być używany w trybie %s\n"
 
@@ -2580,7 +2590,7 @@ msgid "remove as much as possible from key after import"
 msgstr "usuwanie jak największej części kluczy po imporcie"
 
 msgid "ignore key-signatures which are not self-signatures"
-msgstr ""
+msgstr "ignorowanie podpisów kluczy nie będących podpisami własnymi"
 
 msgid "run import filters and export key immediately"
 msgstr "natychmiastowe uruchomienie filtrów importu i eksport klucza"
@@ -2970,6 +2980,65 @@ msgstr "klucz %s: ,,%s'' dodany certyfikat unieważnienia\n"
 #, c-format
 msgid "key %s: direct key signature added\n"
 msgstr "klucz %s: dodano bezpośredni podpis\n"
+
+#, c-format
+msgid "error allocating memory: %s\n"
+msgstr "błąd przydzielania pamięci: %s\n"
+
+#, c-format
+msgid "can't check signature with unsupported public-key algorithm (%d): %s.\n"
+msgstr ""
+"nie można sprawdzić podpisu z nieobsługiwanym algorytmem klucza publicznego "
+"(%d): %s.\n"
+
+#, c-format
+msgid ""
+"can't check signature with unsupported message-digest algorithm %d: %s.\n"
+msgstr ""
+"nie można sprawdzić podpisu z nieobsługiwanym algorytmem skrótu %d: %s.\n"
+
+msgid " (reordered signatures follow)"
+msgstr " (poniżej uporządkowane podpisy)"
+
+#, c-format
+msgid "key %s:\n"
+msgstr "klucz %s:\n"
+
+#, c-format
+msgid "%d duplicate signature removed\n"
+msgid_plural "%d duplicate signatures removed\n"
+msgstr[0] "%d powtórzony podpis usunięty\n"
+msgstr[1] "%d powtórzone podpisy usunięte\n"
+msgstr[2] "%d powtórzonych podpisów usuniętych\n"
+
+#, c-format
+msgid "%d signature not checked due to a missing key\n"
+msgid_plural "%d signatures not checked due to missing keys\n"
+msgstr[0] "%d podpis nie został sprawdzony z powodu braku klucza\n"
+msgstr[1] "%d podpisy nie zostały sprawdzone z powodu braku klucza\n"
+msgstr[2] "%d podpisów nie zostało sprawdzonych z powodu braku klucza\n"
+
+#, c-format
+msgid "%d bad signature\n"
+msgid_plural "%d bad signatures\n"
+msgstr[0] "%d niepoprawny podpis\n"
+msgstr[1] "%d niepoprawne podpisy\n"
+msgstr[2] "%d niepoprawnych podpisów\n"
+
+#, c-format
+msgid "%d signature reordered\n"
+msgid_plural "%d signatures reordered\n"
+msgstr[0] "%d podpis uporządkowany\n"
+msgstr[1] "%d podpisy uporządkowane\n"
+msgstr[2] "%d podpisów uporządkowanych\n"
+
+#, c-format
+msgid ""
+"Warning: errors found and only checked self-signatures, run '%s' to check "
+"all signatures.\n"
+msgstr ""
+"Uwaga: znaleziono błędy, a sprawdzono tylko podpisy własne; uruchomienie "
+"'%s' sprawdzi wszystkie podpisy.\n"
 
 #, c-format
 msgid "error creating keybox '%s': %s\n"
@@ -3489,6 +3558,14 @@ msgid "Nothing to sign.\n"
 msgstr "Nie ma nic do podpisania.\n"
 
 #, c-format
+msgid "Not signed by you.\n"
+msgstr "Nie podpisane przez ciebie.\n"
+
+#, c-format
+msgid "revoking the key signature failed: %s\n"
+msgstr "unieważnienie podpisu klucza nie powiodło się: %s\n"
+
+#, c-format
 msgid "'%s' is not a valid expiration time\n"
 msgstr ",,%s'' nie jest poprawnym czasem wygaśnięcia\n"
 
@@ -3499,6 +3576,9 @@ msgstr ",,%s'' nie jest właściwym odciskiem\n"
 #, c-format
 msgid "subkey \"%s\" not found\n"
 msgstr "podklucz ,,%s'' nie został odnaleziony\n"
+
+msgid "AEAD: "
+msgstr "AEAD: "
 
 msgid "Digest: "
 msgstr "Skrót: "
@@ -3778,9 +3858,6 @@ msgstr "Czy dalej chcesz go unieważnić? (t/N) "
 msgid "Create a revocation certificate for this signature? (y/N) "
 msgstr "Stworzyć certyfikat unieważnienia tego podpisu? (t/N) "
 
-msgid "Not signed by you.\n"
-msgstr "Nie podpisane przez ciebie.\n"
-
 #, c-format
 msgid "You have signed these user IDs on key %s:\n"
 msgstr "Te identyfikatory na kluczu %s są podpisane przez Ciebie:\n"
@@ -3987,10 +4064,9 @@ msgstr "   (%d) ECC (tylko do szyfrowania)\n"
 msgid "  (%d) Existing key\n"
 msgstr "   (%d) Istniejący klucz\n"
 
-#, fuzzy, c-format
-#| msgid "   (%d) Existing key from card\n"
+#, c-format
 msgid "  (%d) Existing key from card\n"
-msgstr "   (%d) Istniejący klucz z karty\n"
+msgstr "  (%d) Istniejący klucz z karty\n"
 
 msgid "Enter the keygrip: "
 msgstr "Uchwyt klucza: "
@@ -4342,20 +4418,6 @@ msgstr[1] "%d poprawne podpisy\n"
 msgstr[2] "%d poprawnych podpisów\n"
 
 #, c-format
-msgid "%d bad signature\n"
-msgid_plural "%d bad signatures\n"
-msgstr[0] "%d niepoprawny podpis\n"
-msgstr[1] "%d niepoprawne podpisy\n"
-msgstr[2] "%d niepoprawnych podpisów\n"
-
-#, c-format
-msgid "%d signature not checked due to a missing key\n"
-msgid_plural "%d signatures not checked due to missing keys\n"
-msgstr[0] "%d podpis nie został sprawdzony z powodu braku klucza\n"
-msgstr[1] "%d podpisy nie zostały sprawdzone z powodu braku klucza\n"
-msgstr[2] "%d podpisów nie zostało sprawdzonych z powodu braku klucza\n"
-
-#, c-format
 msgid "%d signature not checked due to an error\n"
 msgid_plural "%d signatures not checked due to errors\n"
 msgstr[0] "%d podpis nie został sprawdzony z powodu błędu\n"
@@ -4652,7 +4714,7 @@ msgstr "Klucz dostępny w: "
 
 #, c-format
 msgid "Note: Use '%s' to make use of this info\n"
-msgstr ""
+msgstr "Uwaga: aby wykorzystać tę informację, należy użyć ,,%s''\n"
 
 msgid "[uncertain]"
 msgstr "[niepewne]"
@@ -4751,10 +4813,11 @@ msgstr "OSTRZEŻENIE: algorytm skrótu %s jest odradzany\n"
 msgid "Note: signatures using the %s algorithm are rejected\n"
 msgstr "Uwaga: podpisy wykorzystujące algorytm %s są odrzucane\n"
 
-#, fuzzy, c-format
-#| msgid "Note: signatures using the %s algorithm are rejected\n"
+#, c-format
 msgid "Note: third-party key signatures using the %s algorithm are rejected\n"
-msgstr "Uwaga: podpisy wykorzystujące algorytm %s są odrzucane\n"
+msgstr ""
+"Uwaga: podpisy kluczami osób trzecich wykorzystujące algorytm %s są "
+"odrzucane\n"
 
 #, c-format
 msgid "(reported error: %s)\n"
@@ -6249,6 +6312,26 @@ msgstr ""
 "Składnia: kbxutil [opcje] [pliki]\n"
 "Wypisywanie, eksport, import danych Keybox\n"
 
+#. TRANSLATORS: Put a \x1f right before a colon.  This can be
+#. * used by pinentry to nicely align the names and values.  Keep
+#. * the %s at the start and end of the string.
+#, c-format
+msgid "%sNumber: %s%%0AHolder: %s%s"
+msgstr "%sNumer: %s%%0AWłaściciel: %s%s"
+
+#. TRANSLATORS: This is the number of remaining attempts to
+#. * enter a PIN.  Use %%0A (double-percent,0A) for a linefeed.
+#, c-format
+msgid "Remaining attempts: %d"
+msgstr "Pozostało prób: %d"
+
+msgid "||Please enter the PIN for the key to create qualified signatures."
+msgstr ""
+"||Proszę wprowadzić PIN PIN dla klucza do tworzenia podpisów kwalifikowanych."
+
+msgid "||Please enter the PIN for the standard keys."
+msgstr "||Proszę wprowadzić PIN dla zwykłych kluczy."
+
 #, c-format
 msgid "RSA modulus missing or not of size %d bits\n"
 msgstr "reszta RSA brakująca lub o rozmiarze innym niż %d bity\n"
@@ -6268,9 +6351,6 @@ msgstr "NullPIN nie został jeszcze zmieniony\n"
 msgid "|N|Please enter a new PIN for the standard keys."
 msgstr "|N|Proszę wprowadzić nowy PIN dla zwykłych kluczy."
 
-msgid "||Please enter the PIN for the standard keys."
-msgstr "||Proszę wprowadzić PIN dla zwykłych kluczy."
-
 msgid "|NP|Please enter a new PIN Unblocking Code (PUK) for the standard keys."
 msgstr ""
 "|NP|Proszę wprowadzić nowy kod oblokowujący PIN (PUK) dla zwykłych kluczy."
@@ -6282,10 +6362,6 @@ msgid "|N|Please enter a new PIN for the key to create qualified signatures."
 msgstr ""
 "|N|Proszę wprowadzić nowy PIN dla klucza do tworzenia podpisów "
 "kwalifikowanych."
-
-msgid "||Please enter the PIN for the key to create qualified signatures."
-msgstr ""
-"||Proszę wprowadzić PIN PIN dla klucza do tworzenia podpisów kwalifikowanych."
 
 msgid ""
 "|NP|Please enter a new PIN Unblocking Code (PUK) for the key to create "
@@ -6343,16 +6419,6 @@ msgstr "odczyt klucza publicznego nie powiódł się: %s\n"
 #, c-format
 msgid "%sNumber: %s%%0AHolder: %s%%0ACounter: %lu%s"
 msgstr "%sNumer: %s%%0AWłaściciel: %s%%0ALicznik: %lu%s"
-
-#, c-format
-msgid "%sNumber: %s%%0AHolder: %s%s"
-msgstr "%sNumer: %s%%0AWłaściciel: %s%s"
-
-#. TRANSLATORS: This is the number of remaining attempts to
-#. * enter a PIN.  Use %%0A (double-percent,0A) for a linefeed.
-#, c-format
-msgid "Remaining attempts: %d"
-msgstr "Pozostało prób: %d"
 
 #, c-format
 msgid "using default PIN as %s\n"
@@ -6607,12 +6673,20 @@ msgid "certificate policy not allowed"
 msgstr "polityka certyfikatu niedozwolona"
 
 #, c-format
+msgid "failed to get the fingerprint\n"
+msgstr "nie udało się pobrać odcisku\n"
+
+#, c-format
 msgid "looking up issuer at external location\n"
 msgstr "poszukiwanie wystawcy na zewnątrz\n"
 
 #, c-format
 msgid "number of issuers matching: %d\n"
 msgstr "liczba pasujących wystawców: %d\n"
+
+#, c-format
+msgid "can't get authorityInfoAccess: %s\n"
+msgstr "nie można uzyskać authorityInfoAccess: %s\n"
 
 #, c-format
 msgid "looking up issuer from the Dirmngr cache\n"
@@ -6776,6 +6850,10 @@ msgstr "użyty model poprawności: %s"
 #, c-format
 msgid "a %u bit hash is not valid for a %u bit %s key\n"
 msgstr "skrót %u-bitowy nie jest poprawny dla %u-bitowego klucza %s\n"
+
+#, c-format
+msgid "out of core\n"
+msgstr "brak pamięci\n"
 
 #, c-format
 msgid "(this is the MD2 algorithm)\n"
@@ -7198,10 +7276,6 @@ msgid "error reading input: %s\n"
 msgstr "błąd odczytu wejścia: %s\n"
 
 #, c-format
-msgid "failed to get the fingerprint\n"
-msgstr "nie udało się pobrać odcisku\n"
-
-#, c-format
 msgid "problem looking for existing certificate: %s\n"
 msgstr "problem odszukaniem istniejącego certyfikatu: %s\n"
 
@@ -7293,8 +7367,8 @@ msgid "[date not given]"
 msgstr "[nie podano daty]"
 
 #, c-format
-msgid " using certificate ID 0x%08lX\n"
-msgstr " przy użyciu certyfikatu o ID 0x%08lX\n"
+msgid "algorithm:"
+msgstr "algorytm:"
 
 #, c-format
 msgid ""
@@ -7628,20 +7702,20 @@ msgid "error getting data from cache file: %s\n"
 msgstr "błąd pobierania danych z pliku pamięci podręcznej: %s\n"
 
 #, c-format
-msgid "unknown hash algorithm '%s'\n"
-msgstr "niewłaściwy algorytm skrótu ,,%s''\n"
-
-#, c-format
-msgid "gcry_md_open for algorithm %d failed: %s\n"
-msgstr "gcry_md_open dla algorytmu %d nie powiodło się: %s\n"
-
-#, c-format
 msgid "got an invalid S-expression from libksba\n"
 msgstr "odebrano błędne S-wyrażenie z libksba\n"
 
 #, c-format
 msgid "converting S-expression failed: %s\n"
 msgstr "konwersja S-wyrażenia nie powiodła się: %s\n"
+
+#, c-format
+msgid "unknown hash algorithm '%s'\n"
+msgstr "niewłaściwy algorytm skrótu ,,%s''\n"
+
+#, c-format
+msgid "gcry_md_open for algorithm %d failed: %s\n"
+msgstr "gcry_md_open dla algorytmu %d nie powiodło się: %s\n"
 
 #, c-format
 msgid "creating S-expression failed: %s\n"
@@ -8255,10 +8329,6 @@ msgid "redirection changed to '%s'\n"
 msgstr "przekierowanie zmienione na ,,%s''\n"
 
 #, c-format
-msgid "error allocating memory: %s\n"
-msgstr "błąd przydzielania pamięci: %s\n"
-
-#, c-format
 msgid "error printing log line: %s\n"
 msgstr "błąd wypisywania linii logu: %s\n"
 
@@ -8402,10 +8472,6 @@ msgstr "wywołujący nie zwrócił certyfikatu wystawcy\n"
 #, c-format
 msgid "failed to allocate OCSP context: %s\n"
 msgstr "nie udało się przydzielić kontekstu OCSP: %s\n"
-
-#, c-format
-msgid "can't get authorityInfoAccess: %s\n"
-msgstr "nie można uzyskać authorityInfoAccess: %s\n"
 
 #, c-format
 msgid "no default OCSP responder defined\n"
@@ -8679,15 +8745,11 @@ msgstr ""
 "|MECHANIZMY|wykorzystaj MECHANIZMY do wyszukiwania kluczy na podstawie "
 "adresów e-mail"
 
-#, fuzzy
-#| msgid "import keys from a keyserver"
 msgid "import missing key from a signature"
-msgstr "import kluczy z serwera kluczy"
+msgstr "import brakującego klucza z podpisu"
 
-#, fuzzy
-#| msgid "list and check key signatures"
 msgid "include the public key in signatures"
-msgstr "wypisanie i sprawdzenie podpisów kluczy"
+msgstr "włączanie klucza publicznego do podpisów"
 
 msgid "disable all access to the dirmngr"
 msgstr "zablokuj dostęp do dirmngr"
@@ -8833,145 +8895,6 @@ msgstr "Nie znaleziono komponentu"
 msgid "No argument allowed"
 msgstr "Argument nie jest dozwolony"
 
-msgid ""
-"@\n"
-"Commands:\n"
-" "
-msgstr ""
-"@\n"
-"Polecenia:\n"
-" "
-
-msgid "decryption modus"
-msgstr "tryb rozszyfrowywania"
-
-msgid "encryption modus"
-msgstr "tryb szyfrowania"
-
-msgid "tool class (confucius)"
-msgstr "klasa narzędzia (confucius)"
-
-msgid "program filename"
-msgstr "nazwa programu"
-
-msgid "secret key file (required)"
-msgstr "plik klucza tajnego (wymagany)"
-
-msgid "input file name (default stdin)"
-msgstr "nazwa pliku wejściowego (domyślnie standardowe wejście)"
-
-msgid "Usage: symcryptrun [options] (-h for help)"
-msgstr "Składnia: symcryptrun [opcje] (-h wyświetla pomoc)"
-
-msgid ""
-"Syntax: symcryptrun --class CLASS --program PROGRAM --keyfile KEYFILE "
-"[options...] COMMAND [inputfile]\n"
-"Call a simple symmetric encryption tool\n"
-msgstr ""
-"Składnia: symcryptrun --class KLASA --program PROGRAM --keyfile PLIK_KLUCZA "
-"[opcje...] POLECENIE [plik-weściowy]\n"
-"Wywołanie prostego narzędzia do szyfrowania symetrycznego\n"
-
-#, c-format
-msgid "%s on %s aborted with status %i\n"
-msgstr "%s na %s przerwany ze stanem %i\n"
-
-#, c-format
-msgid "%s on %s failed with status %i\n"
-msgstr "%s na %s nie powiódł się ze stanem %i\n"
-
-#, c-format
-msgid "can't create temporary directory '%s': %s\n"
-msgstr "nie można utworzyć katalogu tymczasowego ,,%s'': %s\n"
-
-#, c-format
-msgid "could not open %s for writing: %s\n"
-msgstr "nie udało się otworzyć %s do zapisu: %s\n"
-
-#, c-format
-msgid "error writing to %s: %s\n"
-msgstr "błąd zapisu do %s: %s\n"
-
-#, c-format
-msgid "error reading from %s: %s\n"
-msgstr "błąd odczytu z %s: %s\n"
-
-#, c-format
-msgid "error closing %s: %s\n"
-msgstr "błąd zamykania %s: %s\n"
-
-#, c-format
-msgid "no --program option provided\n"
-msgstr "nie podano opcji --program\n"
-
-#, c-format
-msgid "only --decrypt and --encrypt are supported\n"
-msgstr "obsługiwane są tylko --decrypt i --encrypt\n"
-
-#, c-format
-msgid "no --keyfile option provided\n"
-msgstr "nie podano opcji --keyfile\n"
-
-#, c-format
-msgid "cannot allocate args vector\n"
-msgstr "nie można przydzielić wektora args\n"
-
-#, c-format
-msgid "could not create pipe: %s\n"
-msgstr "nie udało się utworzyć potoku: %s\n"
-
-#, c-format
-msgid "could not create pty: %s\n"
-msgstr "nie udało się utworzyć pty: %s\n"
-
-#, c-format
-msgid "could not fork: %s\n"
-msgstr "nie udało się wykonać fork: %s\n"
-
-#, c-format
-msgid "execv failed: %s\n"
-msgstr "execv nie powiodło się: %s\n"
-
-#, c-format
-msgid "select failed: %s\n"
-msgstr "select nie powiodło się: %s\n"
-
-#, c-format
-msgid "read failed: %s\n"
-msgstr "odczyt nie powiódł się: %s\n"
-
-#, c-format
-msgid "pty read failed: %s\n"
-msgstr "odczyt pty nie powiódł się: %s\n"
-
-#, c-format
-msgid "waitpid failed: %s\n"
-msgstr "waitpid nie powiodło się: %s\n"
-
-#, c-format
-msgid "child aborted with status %i\n"
-msgstr "potomek został przerwany ze stanem %i\n"
-
-#, c-format
-msgid "cannot allocate infile string: %s\n"
-msgstr "nie można przydzielić łańcucha pliku wejściowego: %s\n"
-
-#, c-format
-msgid "cannot allocate outfile string: %s\n"
-msgstr "nie można przydzielić łańcucha pliku wyjściowego: %s\n"
-
-#, c-format
-msgid "either %s or %s must be given\n"
-msgstr "musi być podane %s lub %s\n"
-
-#, c-format
-msgid "no class provided\n"
-msgstr "nie podano klasy\n"
-
-#, c-format
-msgid "class %s is not supported\n"
-msgstr "klasa %s nie jest obsługiwana\n"
-
 msgid "Usage: gpg-check-pattern [options] patternfile (-h for help)\n"
 msgstr ""
 "Składnia: gpg-check-pattern [opcje] plik-wzorców (-h wyświetla pomoc)\n"
@@ -8983,20 +8906,119 @@ msgstr ""
 "Składnia: gpg-check-pattern [opcje] plik-wzorców\n"
 "Sprawdzanie hasła ze standardowego wejścia względem pliku wzorców\n"
 
-#, fuzzy
-#~| msgid "option '%s' may not be used in %s mode\n"
+#~ msgid "Note: old default options file '%s' ignored\n"
+#~ msgstr "Uwaga: stary domyślny plik opcji ,,%s'' został zignorowany\n"
+
 #~ msgid ""
-#~ "keyserver option \"honor-keyserver-url\" may not be used in Tor mode\n"
-#~ msgstr "opcja ,,%s'' nie może być używana w trybie %s\n"
+#~ "@\n"
+#~ "Commands:\n"
+#~ " "
+#~ msgstr ""
+#~ "@\n"
+#~ "Polecenia:\n"
+#~ " "
 
-#~ msgid "male"
-#~ msgstr "mężczyzna"
+#~ msgid "decryption modus"
+#~ msgstr "tryb rozszyfrowywania"
 
-#~ msgid "female"
-#~ msgstr "kobieta"
+#~ msgid "encryption modus"
+#~ msgstr "tryb szyfrowania"
 
-#~ msgid "unspecified"
-#~ msgstr "nie podano"
+#~ msgid "tool class (confucius)"
+#~ msgstr "klasa narzędzia (confucius)"
 
-#~ msgid "Sex ((M)ale, (F)emale or space): "
-#~ msgstr "Płeć (M - mężczyzna, F - kobieta lub spacja): "
+#~ msgid "program filename"
+#~ msgstr "nazwa programu"
+
+#~ msgid "secret key file (required)"
+#~ msgstr "plik klucza tajnego (wymagany)"
+
+#~ msgid "input file name (default stdin)"
+#~ msgstr "nazwa pliku wejściowego (domyślnie standardowe wejście)"
+
+#~ msgid "Usage: symcryptrun [options] (-h for help)"
+#~ msgstr "Składnia: symcryptrun [opcje] (-h wyświetla pomoc)"
+
+#~ msgid ""
+#~ "Syntax: symcryptrun --class CLASS --program PROGRAM --keyfile KEYFILE "
+#~ "[options...] COMMAND [inputfile]\n"
+#~ "Call a simple symmetric encryption tool\n"
+#~ msgstr ""
+#~ "Składnia: symcryptrun --class KLASA --program PROGRAM --keyfile "
+#~ "PLIK_KLUCZA [opcje...] POLECENIE [plik-weściowy]\n"
+#~ "Wywołanie prostego narzędzia do szyfrowania symetrycznego\n"
+
+#~ msgid "%s on %s aborted with status %i\n"
+#~ msgstr "%s na %s przerwany ze stanem %i\n"
+
+#~ msgid "%s on %s failed with status %i\n"
+#~ msgstr "%s na %s nie powiódł się ze stanem %i\n"
+
+#~ msgid "can't create temporary directory '%s': %s\n"
+#~ msgstr "nie można utworzyć katalogu tymczasowego ,,%s'': %s\n"
+
+#~ msgid "could not open %s for writing: %s\n"
+#~ msgstr "nie udało się otworzyć %s do zapisu: %s\n"
+
+#~ msgid "error writing to %s: %s\n"
+#~ msgstr "błąd zapisu do %s: %s\n"
+
+#~ msgid "error reading from %s: %s\n"
+#~ msgstr "błąd odczytu z %s: %s\n"
+
+#~ msgid "error closing %s: %s\n"
+#~ msgstr "błąd zamykania %s: %s\n"
+
+#~ msgid "no --program option provided\n"
+#~ msgstr "nie podano opcji --program\n"
+
+#~ msgid "only --decrypt and --encrypt are supported\n"
+#~ msgstr "obsługiwane są tylko --decrypt i --encrypt\n"
+
+#~ msgid "no --keyfile option provided\n"
+#~ msgstr "nie podano opcji --keyfile\n"
+
+#~ msgid "cannot allocate args vector\n"
+#~ msgstr "nie można przydzielić wektora args\n"
+
+#~ msgid "could not create pipe: %s\n"
+#~ msgstr "nie udało się utworzyć potoku: %s\n"
+
+#~ msgid "could not create pty: %s\n"
+#~ msgstr "nie udało się utworzyć pty: %s\n"
+
+#~ msgid "could not fork: %s\n"
+#~ msgstr "nie udało się wykonać fork: %s\n"
+
+#~ msgid "execv failed: %s\n"
+#~ msgstr "execv nie powiodło się: %s\n"
+
+#~ msgid "select failed: %s\n"
+#~ msgstr "select nie powiodło się: %s\n"
+
+#~ msgid "read failed: %s\n"
+#~ msgstr "odczyt nie powiódł się: %s\n"
+
+#~ msgid "pty read failed: %s\n"
+#~ msgstr "odczyt pty nie powiódł się: %s\n"
+
+#~ msgid "waitpid failed: %s\n"
+#~ msgstr "waitpid nie powiodło się: %s\n"
+
+#~ msgid "child aborted with status %i\n"
+#~ msgstr "potomek został przerwany ze stanem %i\n"
+
+#~ msgid "cannot allocate infile string: %s\n"
+#~ msgstr "nie można przydzielić łańcucha pliku wejściowego: %s\n"
+
+#~ msgid "cannot allocate outfile string: %s\n"
+#~ msgstr "nie można przydzielić łańcucha pliku wyjściowego: %s\n"
+
+#~ msgid "either %s or %s must be given\n"
+#~ msgstr "musi być podane %s lub %s\n"
+
+#~ msgid "no class provided\n"
+#~ msgstr "nie podano klasy\n"
+
+#~ msgid "class %s is not supported\n"
+#~ msgstr "klasa %s nie jest obsługiwana\n"

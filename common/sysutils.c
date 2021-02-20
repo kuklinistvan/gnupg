@@ -40,6 +40,9 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#ifdef HAVE_PWD_H
+# include <pwd.h>
+#endif
 #include <unistd.h>
 #include <errno.h>
 #ifdef HAVE_STAT
@@ -73,6 +76,7 @@
 # include <npth.h>
 #endif
 #include <fcntl.h>
+#include <dirent.h>
 
 #include <assuan.h>
 
@@ -82,6 +86,22 @@
 #include "sysutils.h"
 
 #define tohex(n) ((n) < 10 ? ((n) + '0') : (((n) - 10) + 'A'))
+
+
+/* The object used with our opendir functions.  We need to define our
+ * own so that we can properly handle Unicode on Windows.  */
+struct gnupg_dir_s
+{
+#ifdef HAVE_W32_SYSTEM
+  _WDIR *dir;                    /* The system's DIR pointer.  */
+#else
+  DIR *dir;                      /* The system's DIR pointer.  */
+#endif
+  struct gnupg_dirent_s dirent;  /* The current dirent.  */
+  size_t namesize;  /* If not 0 the allocated size of dirent.d_name.  */
+  char name[256];   /* Only used if NAMESIZE is 0.  */
+};
+
 
 /* Flag to tell whether special file names are enabled.  See gpg.c for
  * an explanation of these file names.  */
@@ -170,6 +190,144 @@ enable_core_dumps (void)
     return 1;
 #endif
 }
+
+#ifdef HAVE_W32_SYSTEM
+static int
+any8bitchar (const char *string)
+{
+  if (string)
+    for ( ; *string; string++)
+      if ((*string & 0x80))
+        return 1;
+  return 0;
+}
+#endif /*HAVE_W32_SYSTEM*/
+
+
+/* Helper for gnupg_w32_set_errno.  */
+#ifdef HAVE_W32_SYSTEM
+static int
+map_w32_to_errno (DWORD w32_err)
+{
+  switch (w32_err)
+    {
+    case 0:
+      return 0;
+
+    case ERROR_FILE_NOT_FOUND:
+      return ENOENT;
+
+    case ERROR_PATH_NOT_FOUND:
+      return ENOENT;
+
+    case ERROR_ACCESS_DENIED:
+      return EPERM;  /* ReactOS uses EACCES ("Permission denied") and
+                      * is likely right because they used an
+                      * undocumented function to associate the error
+                      * codes.  However we have always used EPERM
+                      * ("Operation not permitted", e.g. function is
+                      * required to be called by root) and we better
+                      * stick to that to avoid surprising bugs. */
+
+    case ERROR_INVALID_HANDLE:
+      return EBADF;
+
+    case ERROR_INVALID_BLOCK:
+      return ENOMEM;
+
+    case ERROR_NOT_ENOUGH_MEMORY:
+      return ENOMEM;
+
+    case ERROR_NO_DATA:
+      return EPIPE;
+
+    case ERROR_ALREADY_EXISTS:
+      return EEXIST;
+
+      /* This mapping has been taken from reactOS.  */
+    case ERROR_TOO_MANY_OPEN_FILES: return EMFILE;
+    case ERROR_ARENA_TRASHED: return ENOMEM;
+    case ERROR_BAD_ENVIRONMENT: return E2BIG;
+    case ERROR_BAD_FORMAT: return ENOEXEC;
+    case ERROR_INVALID_DRIVE: return ENOENT;
+    case ERROR_CURRENT_DIRECTORY: return EACCES;
+    case ERROR_NOT_SAME_DEVICE: return EXDEV;
+    case ERROR_NO_MORE_FILES: return ENOENT;
+    case ERROR_WRITE_PROTECT: return EACCES;
+    case ERROR_BAD_UNIT: return EACCES;
+    case ERROR_NOT_READY: return EACCES;
+    case ERROR_BAD_COMMAND: return EACCES;
+    case ERROR_CRC: return EACCES;
+    case ERROR_BAD_LENGTH: return EACCES;
+    case ERROR_SEEK: return EACCES;
+    case ERROR_NOT_DOS_DISK: return EACCES;
+    case ERROR_SECTOR_NOT_FOUND: return EACCES;
+    case ERROR_OUT_OF_PAPER: return EACCES;
+    case ERROR_WRITE_FAULT: return EACCES;
+    case ERROR_READ_FAULT: return EACCES;
+    case ERROR_GEN_FAILURE: return EACCES;
+    case ERROR_SHARING_VIOLATION: return EACCES;
+    case ERROR_LOCK_VIOLATION: return EACCES;
+    case ERROR_WRONG_DISK: return EACCES;
+    case ERROR_SHARING_BUFFER_EXCEEDED: return EACCES;
+    case ERROR_BAD_NETPATH: return ENOENT;
+    case ERROR_NETWORK_ACCESS_DENIED: return EACCES;
+    case ERROR_BAD_NET_NAME: return ENOENT;
+    case ERROR_FILE_EXISTS: return EEXIST;
+    case ERROR_CANNOT_MAKE: return EACCES;
+    case ERROR_FAIL_I24: return EACCES;
+    case ERROR_NO_PROC_SLOTS: return EAGAIN;
+    case ERROR_DRIVE_LOCKED: return EACCES;
+    case ERROR_BROKEN_PIPE: return EPIPE;
+    case ERROR_DISK_FULL: return ENOSPC;
+    case ERROR_INVALID_TARGET_HANDLE: return EBADF;
+    case ERROR_WAIT_NO_CHILDREN: return ECHILD;
+    case ERROR_CHILD_NOT_COMPLETE: return ECHILD;
+    case ERROR_DIRECT_ACCESS_HANDLE: return EBADF;
+    case ERROR_SEEK_ON_DEVICE: return EACCES;
+    case ERROR_DIR_NOT_EMPTY: return ENOTEMPTY;
+    case ERROR_NOT_LOCKED: return EACCES;
+    case ERROR_BAD_PATHNAME: return ENOENT;
+    case ERROR_MAX_THRDS_REACHED: return EAGAIN;
+    case ERROR_LOCK_FAILED: return EACCES;
+    case ERROR_INVALID_STARTING_CODESEG: return ENOEXEC;
+    case ERROR_INVALID_STACKSEG: return ENOEXEC;
+    case ERROR_INVALID_MODULETYPE: return ENOEXEC;
+    case ERROR_INVALID_EXE_SIGNATURE: return ENOEXEC;
+    case ERROR_EXE_MARKED_INVALID: return ENOEXEC;
+    case ERROR_BAD_EXE_FORMAT: return ENOEXEC;
+    case ERROR_ITERATED_DATA_EXCEEDS_64k: return ENOEXEC;
+    case ERROR_INVALID_MINALLOCSIZE: return ENOEXEC;
+    case ERROR_DYNLINK_FROM_INVALID_RING: return ENOEXEC;
+    case ERROR_IOPL_NOT_ENABLED: return ENOEXEC;
+    case ERROR_INVALID_SEGDPL: return ENOEXEC;
+    case ERROR_AUTODATASEG_EXCEEDS_64k: return ENOEXEC;
+    case ERROR_RING2SEG_MUST_BE_MOVABLE: return ENOEXEC;
+    case ERROR_RELOC_CHAIN_XEEDS_SEGLIM: return ENOEXEC;
+    case ERROR_INFLOOP_IN_RELOC_CHAIN: return ENOEXEC;
+    case ERROR_FILENAME_EXCED_RANGE: return ENOENT;
+    case ERROR_NESTING_NOT_ALLOWED: return EAGAIN;
+    case ERROR_NOT_ENOUGH_QUOTA: return ENOMEM;
+
+    default:
+      return EIO;
+    }
+}
+#endif /*HAVE_W32_SYSTEM*/
+
+
+/* Set ERRNO from the Windows error.  EC may be -1 to use the last error.  */
+#ifdef HAVE_W32_SYSTEM
+void
+gnupg_w32_set_errno (int ec)
+{
+  /* FIXME: Replace by gpgrt_w32_set_errno.  */
+  if (ec == -1)
+    ec = GetLastError ();
+  _set_errno (map_w32_to_errno (ec));
+}
+#endif /*HAVE_W32_SYSTEM*/
+
 
 
 /* Allow the use of special "-&nnn" style file names.  */
@@ -629,7 +787,7 @@ gnupg_allow_set_foregound_window (pid_t pid)
 int
 gnupg_remove (const char *fname)
 {
-#ifdef HAVE_W32CE_SYSTEM
+#ifdef HAVE_W32_SYSTEM
   int rc;
   wchar_t *wfname;
 
@@ -638,16 +796,48 @@ gnupg_remove (const char *fname)
     rc = 0;
   else
     {
-      rc = DeleteFile (wfname);
+      rc = DeleteFileW (wfname);
+      if (!rc)
+        gnupg_w32_set_errno (-1);
       xfree (wfname);
     }
   if (!rc)
-    return -1; /* ERRNO is automagically provided by gpg-error.h.  */
+    return -1;
   return 0;
 #else
   return remove (fname);
 #endif
 }
+
+
+/* Helper for gnupg_rename_file.  */
+#ifdef HAVE_W32_SYSTEM
+static int
+w32_rename (const char *oldname, const char *newname)
+{
+  if (any8bitchar (oldname) || any8bitchar (newname))
+    {
+      wchar_t *woldname, *wnewname;
+      int ret;
+
+      woldname = utf8_to_wchar (oldname);
+      if (!woldname)
+        return -1;
+      wnewname = utf8_to_wchar (newname);
+      if (!wnewname)
+        {
+          xfree (wnewname);
+          return -1;
+        }
+      ret = _wrename (woldname, wnewname);
+      xfree (wnewname);
+      xfree (woldname);
+      return ret;
+    }
+  else
+    return rename (oldname, newname);
+}
+#endif /*HAVE_W32_SYSTEM*/
 
 
 /* Wrapper for rename(2) to handle Windows peculiarities.  If
@@ -669,7 +859,7 @@ gnupg_rename_file (const char *oldname, const char *newname, int *block_signals)
 
     gnupg_remove (newname);
   again:
-    if (rename (oldname, newname))
+    if (w32_rename (oldname, newname))
       {
         if (GetLastError () == ERROR_SHARING_VIOLATION)
           {
@@ -722,32 +912,37 @@ gnupg_rename_file (const char *oldname, const char *newname, int *block_signals)
 
 #ifndef HAVE_W32_SYSTEM
 static mode_t
-modestr_to_mode (const char *modestr)
+modestr_to_mode (const char *modestr, mode_t oldmode)
 {
+  static struct {
+    char letter;
+    mode_t value;
+  } table[] = { { '-', 0 },
+                { 'r', S_IRUSR }, { 'w', S_IWUSR }, { 'x', S_IXUSR },
+                { 'r', S_IRGRP }, { 'w', S_IWGRP }, { 'x', S_IXGRP },
+                { 'r', S_IROTH }, { 'w', S_IWOTH }, { 'x', S_IXOTH } };
+  int idx;
   mode_t mode = 0;
 
-  if (modestr && *modestr)
+  /* For now we only support a string as used by ls(1) and no octal
+   * numbers.  The first character must be a dash.  */
+  for (idx=0; idx < 10 && *modestr; idx++, modestr++)
     {
-      modestr++;
-      if (*modestr && *modestr++ == 'r')
-        mode |= S_IRUSR;
-      if (*modestr && *modestr++ == 'w')
-        mode |= S_IWUSR;
-      if (*modestr && *modestr++ == 'x')
-        mode |= S_IXUSR;
-      if (*modestr && *modestr++ == 'r')
-        mode |= S_IRGRP;
-      if (*modestr && *modestr++ == 'w')
-        mode |= S_IWGRP;
-      if (*modestr && *modestr++ == 'x')
-        mode |= S_IXGRP;
-      if (*modestr && *modestr++ == 'r')
-        mode |= S_IROTH;
-      if (*modestr && *modestr++ == 'w')
-        mode |= S_IWOTH;
-      if (*modestr && *modestr++ == 'x')
-        mode |= S_IXOTH;
+      if (*modestr == table[idx].letter)
+        mode |= table[idx].value;
+      else if (*modestr == '.')
+        {
+          if (!idx)
+            ;  /* Skip the dummy.  */
+          else if ((oldmode & table[idx].value))
+            mode |= (oldmode & table[idx].value);
+          else
+            mode &= ~(oldmode & table[idx].value);
+        }
+      else if (*modestr != '-')
+        break;
     }
+
 
   return mode;
 }
@@ -768,7 +963,8 @@ modestr_to_mode (const char *modestr)
 int
 gnupg_mkdir (const char *name, const char *modestr)
 {
-#ifdef HAVE_W32CE_SYSTEM
+#if GPG_ERROR_VERSION_NUMBER < 0x011c00 /* 1.28 */
+ #ifdef HAVE_W32CE_SYSTEM
   wchar_t *wname;
   (void)modestr;
 
@@ -782,14 +978,19 @@ gnupg_mkdir (const char *name, const char *modestr)
     }
   xfree (wname);
   return 0;
-#elif MKDIR_TAKES_ONE_ARG
+ #elif MKDIR_TAKES_ONE_ARG
   (void)modestr;
   /* Note: In the case of W32 we better use CreateDirectory and try to
      set appropriate permissions.  However using mkdir is easier
      because this sets ERRNO.  */
   return mkdir (name);
+ #else
+  return mkdir (name, modestr_to_mode (modestr, 0));
+ #endif
 #else
-  return mkdir (name, modestr_to_mode (modestr));
+  /* Note that gpgrt_mkdir also sets ERRNO in addition to returing an
+   * gpg-error style error code.  */
+  return gpgrt_mkdir (name, modestr);
 #endif
 }
 
@@ -799,14 +1000,21 @@ gnupg_mkdir (const char *name, const char *modestr)
 int
 gnupg_chdir (const char *name)
 {
+#if GPG_ERROR_VERSION_NUMBER < 0x011c00 /* 1.28 */
   return chdir (name);
+#else /* Use the improved version from libgpg_error.  */
+  /* Note that gpgrt_chdir also sets ERRNO in addition to returning a
+   * gpg-error style error code.  */
+  return gpgrt_chdir (name);
+#endif
 }
 
 
 /* A wrapper around chmod which takes a string for the mode argument.
    This makes it easier to handle the mode argument which is not
    defined on all systems.  The format of the modestring is the same
-   as for gnupg_mkdir.  */
+   as for gnupg_mkdir with extra feature that a '.' keeps the original
+   mode bit.  */
 int
 gnupg_chmod (const char *name, const char *modestr)
 {
@@ -815,7 +1023,19 @@ gnupg_chmod (const char *name, const char *modestr)
   (void)modestr;
   return 0;
 #else
-  return chmod (name, modestr_to_mode (modestr));
+  mode_t oldmode;
+  if (strchr (modestr, '.'))
+    {
+      /* Get the old mode so that a '.' can copy that bit.  */
+      struct stat st;
+
+      if (stat (name, &st))
+        return -1;
+      oldmode = st.st_mode;
+    }
+  else
+    oldmode = 0;
+  return chmod (name, modestr_to_mode (modestr, oldmode));
 #endif
 }
 
@@ -1006,10 +1226,38 @@ gnupg_unsetenv (const char *name)
 
 
 /* Return the current working directory as a malloced string.  Return
-   NULL and sets ERRNo on error.  */
+   NULL and sets ERRNO on error.  */
 char *
 gnupg_getcwd (void)
 {
+#if GPGRT_VERSION_NUMBER < 0x012800 /* 1.40 */
+# ifdef HAVE_W32_SYSTEM
+  wchar_t wbuffer[MAX_PATH + sizeof(wchar_t)];
+  DWORD wlen;
+  char *buf, *p;
+
+  wlen = GetCurrentDirectoryW (MAX_PATH, wbuffer);
+  if (!wlen)
+    {
+      gpg_err_set_errno (EINVAL);
+      return NULL;
+
+    }
+  else if (wlen > MAX_PATH)
+    {
+      gpg_err_set_errno (ENAMETOOLONG);
+      return NULL;
+    }
+  buf = wchar_to_utf8 (wbuffer);
+  if (buf)
+    {
+      for (p=buf; *p; p++)
+        if (*p == '\\')
+          *p = '/';
+    }
+  return buf;
+
+# else /*Unix*/
   char *buffer;
   size_t size = 100;
 
@@ -1018,18 +1266,306 @@ gnupg_getcwd (void)
       buffer = xtrymalloc (size+1);
       if (!buffer)
         return NULL;
-#ifdef HAVE_W32CE_SYSTEM
-      strcpy (buffer, "/");  /* Always "/".  */
-      return buffer;
-#else
       if (getcwd (buffer, size) == buffer)
         return buffer;
       xfree (buffer);
       if (errno != ERANGE)
         return NULL;
       size *= 2;
-#endif
     }
+# endif /*Unix*/
+#else
+  return gpgrt_getcwd ();
+#endif
+}
+
+
+/* A simple wrapper around access.  NAME is expected to be utf8
+ * encoded.  This function returns an error code and sets ERRNO. */
+gpg_err_code_t
+gnupg_access (const char *name, int mode)
+{
+#if GPGRT_VERSION_NUMBER < 0x012800 /* 1.40 */
+# ifdef HAVE_W32_SYSTEM
+  wchar_t *wfname;
+  gpg_err_code_t ec;
+
+  wfname = utf8_to_wchar (name);
+  if (!wfname)
+    ec = gpg_err_code_from_syserror ();
+  else
+    {
+      ec = _waccess (wfname, mode)? gpg_err_code_from_syserror () : 0;
+      xfree (wfname);
+    }
+  return ec;
+# else
+  return access (name, mode)? gpg_err_code_from_syserror () : 0;
+# endif
+#else /* gpgrt 1.40 or newer.  */
+  return gpgrt_access (name, mode);
+#endif
+}
+
+
+/* A wrapper around stat to handle Unicode file names under Windows.  */
+#ifdef HAVE_STAT
+int
+gnupg_stat (const char *name, struct stat *statbuf)
+{
+# ifdef HAVE_W32_SYSTEM
+  if (any8bitchar (name))
+    {
+      wchar_t *wname;
+      struct _stat32 st32;
+      int ret;
+
+      wname = utf8_to_wchar (name);
+      if (!wname)
+        return -1;
+      ret = _wstat (wname, &st32);
+      xfree (wname);
+      if (!ret)
+        {
+          statbuf->st_dev   = st32.st_dev;
+          statbuf->st_ino   = st32.st_ino;
+          statbuf->st_mode  = st32.st_mode;
+          statbuf->st_nlink = st32.st_nlink;
+          statbuf->st_uid   = st32.st_uid;
+          statbuf->st_gid   = st32.st_gid;
+          statbuf->st_rdev  = st32.st_rdev;
+          statbuf->st_size  = st32.st_size;
+          statbuf->st_atime = st32.st_atime;
+          statbuf->st_mtime = st32.st_mtime;
+          statbuf->st_ctime = st32.st_ctime;
+        }
+      return ret;
+    }
+  else
+    return stat (name, statbuf);
+# else
+  return stat (name, statbuf);
+# endif
+}
+#endif /*HAVE_STAT*/
+
+
+/* Wrapper around fopen for the cases where we have not yet switched
+ * to es_fopen.  Note that for convenience the prototype is in util.h */
+FILE *
+gnupg_fopen (const char *fname, const char *mode)
+{
+#ifdef HAVE_W32_SYSTEM
+  if (any8bitchar (fname))
+    {
+      wchar_t *wfname;
+      const wchar_t *wmode;
+      wchar_t *wmodebuf = NULL;
+      FILE *ret;
+
+      wfname = utf8_to_wchar (fname);
+      if (!wfname)
+        return NULL;
+      if (!strcmp (mode, "r"))
+        wmode = L"r";
+      else if (!strcmp (mode, "rb"))
+        wmode = L"rb";
+      else if (!strcmp (mode, "w"))
+        wmode = L"w";
+      else if (!strcmp (mode, "wb"))
+        wmode = L"wb";
+      else
+        {
+          wmodebuf = utf8_to_wchar (mode);
+          if (!wmodebuf)
+            {
+              xfree (wfname);
+              return NULL;
+            }
+          wmode = wmodebuf;
+        }
+      ret = _wfopen (wfname, wmode);
+      xfree (wfname);
+      xfree (wmodebuf);
+      return ret;
+    }
+  else
+    return fopen (fname, mode);
+
+#else /*Unix*/
+  return fopen (fname, mode);
+#endif /*Unix*/
+}
+
+
+
+/* A wrapper around open to handle Unicode file names under Windows.  */
+int
+gnupg_open (const char *name, int flags, unsigned int mode)
+{
+#ifdef HAVE_W32_SYSTEM
+  if (any8bitchar (name))
+    {
+      wchar_t *wname;
+      int ret;
+
+      wname = utf8_to_wchar (name);
+      if (!wname)
+        return -1;
+      ret = _wopen (wname, flags, mode);
+      xfree (wname);
+      return ret;
+    }
+  else
+    return open (name, flags, mode);
+#else
+  return open (name, flags, mode);
+#endif
+}
+
+
+/* A wrapper around opendir to handle Unicode file names under
+ * Windows.  This assumes the mingw toolchain.  */
+gnupg_dir_t
+gnupg_opendir (const char *name)
+{
+#ifdef HAVE_W32_SYSTEM
+  _WDIR *dir;
+  wchar_t *wname;
+#else
+  DIR *dir;
+#endif
+  gnupg_dir_t gdir;
+
+#ifdef HAVE_W32_SYSTEM
+  /* Note: See gpgtar-create for an alternative implementation which
+   * could be used here to avoid a mingw dependency.  */
+  wname = utf8_to_wchar (name);
+  if (!wname)
+    return NULL;
+  dir = _wopendir (wname);
+  xfree (wname);
+#else
+  dir = opendir (name);
+#endif
+
+  if (!dir)
+    return NULL;
+
+  gdir = xtrymalloc (sizeof *gdir);
+  if (!gdir)
+    {
+      int save_errno = errno;
+#ifdef HAVE_W32_SYSTEM
+      _wclosedir (dir);
+#else
+      closedir (dir);
+#endif
+      gpg_err_set_errno (save_errno);
+      return NULL;
+    }
+  gdir->dir = dir;
+  gdir->namesize = 0;
+  gdir->dirent.d_name = gdir->name;
+
+  return gdir;
+}
+
+
+gnupg_dirent_t
+gnupg_readdir (gnupg_dir_t gdir)
+{
+#ifdef HAVE_W32_SYSTEM
+  char *namebuffer = NULL;
+  struct _wdirent *de;
+#else
+  struct dirent *de;
+#endif
+  size_t n;
+  gnupg_dirent_t gde;
+  const char *name;
+
+  if (!gdir)
+    {
+      gpg_err_set_errno (EINVAL);
+      return 0;
+    }
+
+#ifdef HAVE_W32_SYSTEM
+  de = _wreaddir (gdir->dir);
+  if (!de)
+    return NULL;
+  namebuffer = wchar_to_utf8 (de->d_name);
+  if (!namebuffer)
+    return NULL;
+  name = namebuffer;
+#else
+  de = readdir (gdir->dir);
+  if (!de)
+    return NULL;
+  name = de->d_name;
+#endif
+
+  gde = &gdir->dirent;
+  n = strlen (name);
+  if (gdir->namesize)
+    {
+      /* Use allocated buffer.  */
+      if (n+1 >= gdir->namesize || !gde->d_name)
+        {
+          gdir->namesize = n + 256;
+          xfree (gde->d_name);
+          gde->d_name = xtrymalloc (gdir->namesize);
+          if (!gde->d_name)
+            return NULL;  /* ERRNO is already set.  */
+        }
+      strcpy (gde->d_name, name);
+    }
+  else if (n+1 >= sizeof (gdir->name))
+    {
+      /* Switch to allocated buffer.  */
+      gdir->namesize = n + 256;
+      gde->d_name = xtrymalloc (gdir->namesize);
+      if (!gde->d_name)
+        return NULL;  /* ERRNO is already set.  */
+      strcpy (gde->d_name, name);
+    }
+  else
+    {
+      /* Use static buffer.  */
+      gde->d_name = gdir->name;
+      strcpy (gde->d_name, name);
+    }
+
+#ifdef HAVE_W32_SYSTEM
+  xfree (namebuffer);
+#endif
+
+  return gde;
+}
+
+
+int
+gnupg_closedir (gnupg_dir_t gdir)
+{
+#ifdef HAVE_W32_SYSTEM
+  _WDIR *dir;
+#else
+  DIR *dir;
+#endif
+
+  if (!gdir)
+    return 0;
+  dir = gdir->dir;
+  if (gdir->namesize)
+    xfree (gdir->dirent.d_name);
+  xfree (gdir);
+
+#ifdef HAVE_W32_SYSTEM
+  return _wclosedir (dir);
+#else
+  return closedir (dir);
+#endif
 }
 
 
@@ -1335,4 +1871,50 @@ gnupg_fd_valid (int fd)
     return 0;
   close (d);
   return 1;
+}
+
+
+/* Return a malloced copy of the current user's account name; this may
+ * return NULL on memory failure.  Note that this should eventually be
+ * replaced by a gpgrt function. */
+char *
+gnupg_getusername (void)
+{
+  char *result = NULL;
+
+#ifdef HAVE_W32_SYSTEM
+  wchar_t wtmp[1];
+  wchar_t *wbuf;
+  DWORD wsize = 1;
+
+  GetUserNameW (wtmp, &wsize);
+  wbuf = xtrymalloc (wsize * sizeof *wbuf);
+  if (!wbuf)
+    {
+      gpg_err_set_errno (ENOMEM);
+      return NULL;
+    }
+  if (!GetUserNameW (wbuf, &wsize))
+    {
+      gpg_err_set_errno (EINVAL);
+      xfree (wbuf);
+      return NULL;
+    }
+  result= wchar_to_utf8 (wbuf);
+  xfree (wbuf);
+
+#else /* !HAVE_W32_SYSTEM */
+
+# if defined(HAVE_PWD_H) && defined(HAVE_GETPWUID)
+  struct passwd *pwd;
+
+  pwd = getpwuid (getuid());
+  if (pwd)
+    result = xtrystrdup (pwd->pw_name);
+
+# endif /*HAVE_PWD_H*/
+
+#endif /* !HAVE_W32_SYSTEM */
+
+  return result;
 }

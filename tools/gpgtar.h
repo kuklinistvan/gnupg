@@ -32,6 +32,7 @@ struct
   unsigned int debug_level;
   int quiet;
   int dry_run;
+  int utf8strings;
   const char *gpg_program;
   strlist_t gpg_arguments;
   const char *outfile;
@@ -121,7 +122,7 @@ struct tar_header_s
 
   unsigned long long nrecords; /* Number of data records.  */
 
-  char name[1];             /* Filename (dynamically extended).  */
+  char name[1];             /* Filename (UTF-8, dynamically extended).  */
 };
 
 
@@ -130,7 +131,8 @@ gpg_error_t read_record (estream_t stream, void *record);
 gpg_error_t write_record (estream_t stream, const void *record);
 
 /*-- gpgtar-create.c --*/
-gpg_error_t gpgtar_create (char **inpattern, int encrypt, int sign);
+gpg_error_t gpgtar_create (char **inpattern, const char *files_from,
+                           int null_names, int encrypt, int sign);
 
 /*-- gpgtar-extract.c --*/
 gpg_error_t gpgtar_extract (const char *filename, int decrypt);

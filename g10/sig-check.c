@@ -164,7 +164,7 @@ check_signature2 (ctrl_t ctrl,
   else if (get_pubkey_for_sig (ctrl, pk, sig, forced_pk))
     rc = gpg_error (GPG_ERR_NO_PUBKEY);
   else if (!gnupg_pk_is_allowed (opt.compliance, PK_USE_VERIFICATION,
-                                 pk->pubkey_algo, pk->pkey,
+                                 pk->pubkey_algo, 0, pk->pkey,
                                  nbits_from_pk (pk),
                                  NULL))
     {
@@ -457,16 +457,14 @@ check_signature_end_simple (PKT_public_key *pk, PKT_signature *sig,
 {
   gcry_mpi_t result = NULL;
   int rc = 0;
-  const struct weakhash *weak;
 
   if (!opt.flags.allow_weak_digest_algos)
     {
-      for (weak = opt.weak_digests; weak; weak = weak->next)
-        if (sig->digest_algo == weak->algo)
-          {
-            print_digest_rejected_note(sig->digest_algo);
-            return GPG_ERR_DIGEST_ALGO;
-          }
+      if (is_weak_digest (sig->digest_algo))
+        {
+          print_digest_rejected_note (sig->digest_algo);
+          return GPG_ERR_DIGEST_ALGO;
+        }
     }
 
   /* For key signatures check that the key has a cert usage.  We may

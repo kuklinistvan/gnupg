@@ -364,8 +364,8 @@ static gpg_error_t
 load_certs_from_dir (const char *dirname, unsigned int trustclass)
 {
   gpg_error_t err;
-  DIR *dir;
-  struct dirent *ep;
+  gnupg_dir_t dir;
+  gnupg_dirent_t ep;
   char *p;
   size_t n;
   estream_t fp;
@@ -373,13 +373,13 @@ load_certs_from_dir (const char *dirname, unsigned int trustclass)
   ksba_cert_t cert;
   char *fname = NULL;
 
-  dir = opendir (dirname);
+  dir = gnupg_opendir (dirname);
   if (!dir)
     {
       return 0; /* We do not consider this a severe error.  */
     }
 
-  while ( (ep=readdir (dir)) )
+  while ( (ep = gnupg_readdir (dir)) )
     {
       p = ep->d_name;
       if (*p == '.' || !*p)
@@ -447,7 +447,7 @@ load_certs_from_dir (const char *dirname, unsigned int trustclass)
     }
 
   xfree (fname);
-  closedir (dir);
+  gnupg_closedir (dir);
   return 0;
 }
 
@@ -685,7 +685,7 @@ load_certs_from_system (void)
   gpg_error_t err = 0;
 
   for (idx=0; idx < DIM (table); idx++)
-    if (!access (table[idx].name, F_OK))
+    if (!gnupg_access (table[idx].name, F_OK))
       {
         /* Take the first available bundle.  */
         err = load_certs_from_file (table[idx].name, CERTTRUST_CLASS_SYSTEM, 0);
@@ -721,6 +721,9 @@ cert_cache_init (strlist_t hkp_cacerts)
     load_certs_from_dir (fname, 0);
   xfree (fname);
 
+  /* Put the special pool certificate into our store.  This is
+   * currently only used with ntbtls.  For GnuTLS http_session_new
+   * unfortunately loads that certificate directly from the file.  */
   fname = make_filename_try (gnupg_datadir (),
                              "sks-keyservers.netCA.pem", NULL);
   if (fname)

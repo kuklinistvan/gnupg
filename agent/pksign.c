@@ -356,6 +356,7 @@ agent_pksign_do (ctrl_t ctrl, const char *cache_nonce,
         err = divert_pksign (ctrl, desc2? desc2 : desc_text,
                              data, datalen,
                              ctrl->digest.algo,
+                             ctrl->keygrip,
                              shadow_info, &buf, &len);
         xfree (desc2);
       }
@@ -472,12 +473,6 @@ agent_pksign_do (ctrl_t ctrl, const char *cache_nonce,
                             ctrl->digest.raw_value);
       if (err)
         goto leave;
-
-      if (dsaalgo == 0 && GCRYPT_VERSION_NUMBER < 0x010700)
-        {
-          /* It's RSA and Libgcrypt < 1.7 */
-          check_signature = 1;
-        }
 
       if (DBG_CRYPTO)
         {

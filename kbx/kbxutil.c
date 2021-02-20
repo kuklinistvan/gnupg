@@ -272,7 +272,7 @@ read_file (const char *fname, size_t *r_length)
     {
       struct stat st;
 
-      fp = fopen (fname, "rb");
+      fp = gnupg_fopen (fname, "rb");
       if (!fp)
         {
           log_error ("can't open '%s': %s\n", fname, strerror (errno));
@@ -418,7 +418,7 @@ import_openpgp (const char *filename, int dryrun)
             }
           else
             {
-              fflush (stdout);
+              es_fflush (es_stdout);
               log_info ("%s: failed to parse OpenPGP keyblock: %s\n",
                         filename, gpg_strerror (err));
             }
@@ -432,17 +432,17 @@ import_openpgp (const char *filename, int dryrun)
               err = _keybox_create_openpgp_blob (&blob, &info, p, nparsed, 0);
               if (err)
                 {
-                  fflush (stdout);
+                  es_fflush (es_stdout);
                   log_error ("%s: failed to create OpenPGP keyblock: %s\n",
                              filename, gpg_strerror (err));
                 }
               else
                 {
-                  err = _keybox_write_blob (blob, stdout);
+                  err = _keybox_write_blob (blob, es_stdout, NULL);
                   _keybox_release_blob (blob);
                   if (err)
                     {
-                      fflush (stdout);
+                      es_fflush (es_stdout);
                       log_error ("%s: failed to write OpenPGP keyblock: %s\n",
                                  filename, gpg_strerror (err));
                     }
@@ -465,7 +465,8 @@ main( int argc, char **argv )
 {
   ARGPARSE_ARGS pargs;
   enum cmd_and_opt_values cmd = 0;
-  unsigned long from = 0, to = ULONG_MAX;
+  unsigned long from = 0;
+  unsigned long to = ULONG_MAX;
   int dry_run = 0;
 
   early_system_init ();
@@ -487,8 +488,8 @@ main( int argc, char **argv )
 
   pargs.argc = &argc;
   pargs.argv = &argv;
-  pargs.flags=  1;  /* do not remove the args */
-  while (arg_parse( &pargs, opts) )
+  pargs.flags= ARGPARSE_FLAG_KEEP;
+  while (gnupg_argparse (NULL, &pargs, opts))
     {
       switch (pargs.r_opt)
         {
@@ -523,6 +524,8 @@ main( int argc, char **argv )
           break;
 	}
     }
+
+  gnupg_argparse (NULL, &pargs, NULL);
 
   if (to < from)
     log_error ("record number of \"--to\" is lower than \"--from\" one\n");

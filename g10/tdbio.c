@@ -681,7 +681,7 @@ tdbio_set_dbname (ctrl_t ctrl, const char *new_dbname,
    * trustdb.gpg.  This check is not required in theory, but it helps
    * in practice avoiding costly operations of preparing and taking
    * the lock.  */
-  if (!stat (fname, &statbuf) && statbuf.st_size > 0)
+  if (!gnupg_stat (fname, &statbuf) && statbuf.st_size > 0)
     {
       /* OK, we have the valid trustdb.gpg already.  */
       return 0;
@@ -711,19 +711,21 @@ tdbio_set_dbname (ctrl_t ctrl, const char *new_dbname,
   log_assert (p);
   save_slash = *p;
   *p = 0;
-  if (access (fname, F_OK))
+  if (gnupg_access (fname, F_OK))
     {
       try_make_homedir (fname);
-      if (access (fname, F_OK))
+      if (gnupg_access (fname, F_OK))
         log_fatal (_("%s: directory does not exist!\n"), fname);
     }
   *p = save_slash;
 
   take_write_lock ();
 
-  if (access (fname, R_OK) || stat (fname, &statbuf) || statbuf.st_size == 0)
+  if (gnupg_access (fname, R_OK)
+      || gnupg_stat (fname, &statbuf)
+      || statbuf.st_size == 0)
     {
-      FILE *fp;
+      estream_t fp;
       TRUSTREC rec;
       int rc;
       mode_t oldmask;
@@ -745,13 +747,13 @@ tdbio_set_dbname (ctrl_t ctrl, const char *new_dbname,
           gpg_err_set_errno (EPERM);
         }
       else
-        fp = fopen (fname, "wb");
+        fp = es_fopen (fname, "wb");
       umask(oldmask);
       if (!fp)
         log_fatal (_("can't create '%s': %s\n"), fname, strerror (errno));
-      fclose (fp);
+      es_fclose (fp);
 
-      db_fd = open (db_name, O_RDWR | MY_O_BINARY);
+      db_fd = gnupg_open (db_name, O_RDWR | MY_O_BINARY, 0);
       if (db_fd == -1)
         log_fatal (_("can't open '%s': %s\n"), db_name, strerror (errno));
 
@@ -811,7 +813,7 @@ open_db ()
                  (int)prevrc, (int)GetLastError ());
   }
 #else /*!HAVE_W32CE_SYSTEM*/
-  db_fd = open (db_name, O_RDWR | MY_O_BINARY );
+  db_fd = gnupg_open (db_name, O_RDWR | MY_O_BINARY, 0);
   if (db_fd == -1 && (errno == EACCES
 #ifdef EROFS
                       || errno == EROFS
@@ -819,7 +821,7 @@ open_db ()
                       )
       ) {
       /* Take care of read-only trustdbs.  */
-      db_fd = open (db_name, O_RDONLY | MY_O_BINARY );
+      db_fd = gnupg_open (db_name, O_RDONLY | MY_O_BINARY, 0);
       if (db_fd != -1 && !opt.quiet)
           log_info (_("Note: trustdb not writable\n"));
   }

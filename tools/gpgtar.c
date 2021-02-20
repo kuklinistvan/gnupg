@@ -1,5 +1,6 @@
 /* gpgtar.c - A simple TAR implementation mainly useful for Windows.
  * Copyright (C) 2010 Free Software Foundation, Inc.
+ * Copyright (C) 2020 g10 Code GmbH
  *
  * This file is part of GnuPG.
  *
@@ -15,6 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 /* GnuPG comes with a shell script gpg-zip which creates archive files
@@ -73,6 +75,7 @@ enum cmd_and_opt_values
     oCMS,
     oSetFilename,
     oNull,
+    oUtf8Strings,
 
     /* Compatibility with gpg-zip.  */
     oGpgArgs,
@@ -117,6 +120,12 @@ static ARGPARSE_OPTS opts[] = {
   ARGPARSE_s_s (oFilesFrom, "files-from",
                 N_("|FILE|get names to create from FILE")),
   ARGPARSE_s_n (oNull, "null", N_("-T reads null-terminated names")),
+#ifdef HAVE_W32_SYSTEM
+  ARGPARSE_s_n (oUtf8Strings, "utf8-strings",
+                N_("-T reads UTF-8 encoded names")),
+#else
+  ARGPARSE_s_n (oUtf8Strings, "utf8-strings", "@"),
+#endif
 
   ARGPARSE_s_s (oGpgArgs, "gpg-args", "@"),
   ARGPARSE_s_s (oTarArgs, "tar-args", "@"),
@@ -138,10 +147,10 @@ static ARGPARSE_OPTS tar_opts[] = {
 
 
 /* Global flags.  */
-enum cmd_and_opt_values cmd = 0;
-int skip_crypto = 0;
-const char *files_from = NULL;
-int null_names = 0;
+static enum cmd_and_opt_values cmd = 0;
+static int skip_crypto = 0;
+static const char *files_from = NULL;
+static int null_names = 0;
 
 
 
@@ -154,9 +163,11 @@ my_strusage( int level )
 
   switch (level)
     {
+    case  9: p = "GPL-3.0-or-later"; break;
     case 11: p = "@GPGTAR@ (@GNUPG@)";
       break;
     case 13: p = VERSION; break;
+    case 14: p = GNUPG_DEF_COPYRIGHT_LINE; break;
     case 17: p = PRINTABLE_OS_NAME; break;
     case 19: p = _("Please report bugs to <@EMAIL@>.\n"); break;
 
@@ -307,7 +318,7 @@ parse_arguments (ARGPARSE_ARGS *pargs, ARGPARSE_OPTS *popts)
 {
   int no_more_options = 0;
 
-  while (!no_more_options && optfile_parse (NULL, NULL, NULL, pargs, popts))
+  while (!no_more_options && gnupg_argparse (NULL, pargs, popts))
     {
       switch (pargs->r_opt)
         {
@@ -319,6 +330,7 @@ parse_arguments (ARGPARSE_ARGS *pargs, ARGPARSE_OPTS *popts)
         case oNoVerbose: opt.verbose = 0; break;
         case oFilesFrom: files_from = pargs->r.ret_str; break;
         case oNull: null_names = 1; break;
+        case oUtf8Strings: opt.utf8strings = 1; break;
 
 	case aList:
         case aDecrypt:
@@ -377,7 +389,7 @@ parse_arguments (ARGPARSE_ARGS *pargs, ARGPARSE_OPTS *popts)
           }
           break;
 
-        case oTarArgs:;
+        case oTarArgs:
           {
             int tar_argc;
             char **tar_argv;
@@ -392,6 +404,7 @@ parse_arguments (ARGPARSE_ARGS *pargs, ARGPARSE_OPTS *popts)
                 tar_args.argv = &tar_argv;
                 tar_args.flags = ARGPARSE_FLAG_ARG0;
                 parse_arguments (&tar_args, tar_opts);
+                gnupg_argparse (NULL, &tar_args, NULL);
                 if (tar_args.err)
                   log_error ("unsupported tar arguments '%s'\n",
                              pargs->r.ret_str);
@@ -418,8 +431,6 @@ main (int argc, char **argv)
   const char *fname;
   ARGPARSE_ARGS pargs;
 
-  assert (sizeof (struct ustar_raw_header) == 512);
-
   gnupg_reopen_std (GPGTAR_NAME);
   set_strusage (my_strusage);
   log_set_prefix (GPGTAR_NAME, GPGRT_LOG_WITH_PREFIX);
@@ -428,16 +439,14 @@ main (int argc, char **argv)
   i18n_init();
   init_common_subsystems (&argc, &argv);
 
+  log_assert (sizeof (struct ustar_raw_header) == 512);
+
   /* Parse the command line. */
   pargs.argc  = &argc;
   pargs.argv  = &argv;
   pargs.flags = ARGPARSE_FLAG_KEEP;
   parse_arguments (&pargs, opts);
-
-  if ((files_from && !null_names) || (!files_from && null_names))
-    log_error ("--files-from and --null may only be used in conjunction\n");
-  if (files_from && strcmp (files_from, "-"))
-    log_error ("--files-from only supports argument \"-\"\n");
+  gnupg_argparse (NULL, &pargs, NULL);
 
   if (log_get_errorcount (0))
     exit (2);
@@ -476,12 +485,14 @@ main (int argc, char **argv)
     case aEncrypt:
     case aSign:
     case aSignEncrypt:
-      if ((!argc && !null_names)
-          || (argc && null_names))
+      if ((!argc && !files_from)
+          || (argc && files_from))
         usage (1);
       if (opt.filename)
         log_info ("note: ignoring option --set-filename\n");
-      err = gpgtar_create (null_names? NULL :argv,
+      err = gpgtar_create (files_from? NULL : argv,
+                           files_from,
+                           null_names,
                            !skip_crypto
                            && (cmd == aEncrypt || cmd == aSignEncrypt),
                            cmd == aSign || cmd == aSignEncrypt);

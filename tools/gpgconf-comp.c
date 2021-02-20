@@ -757,10 +757,10 @@ static gc_option_t gc_options_gpg[] =
      "gnupg", N_("|MECHANISMS|use MECHANISMS to locate keys by mail address"),
      GC_ARG_TYPE_STRING, GC_BACKEND_GPG },
    { "auto-key-import", GC_OPT_FLAG_NONE, GC_LEVEL_BASIC,
-     N_("import missing key from a signature"), "gnupg",
+     "gnupg", N_("import missing key from a signature"),
      GC_ARG_TYPE_NONE, GC_BACKEND_GPG },
    { "include-key-block", GC_OPT_FLAG_NONE, GC_LEVEL_BASIC,
-     N_("include the public key in signatures"), "gnupg",
+     "gnupg", N_("include the public key in signatures"),
      GC_ARG_TYPE_NONE, GC_BACKEND_GPG },
    { "auto-key-retrieve", GC_OPT_FLAG_NONE, GC_LEVEL_EXPERT,
      NULL, NULL, GC_ARG_TYPE_NONE, GC_BACKEND_GPG },
@@ -2115,7 +2115,7 @@ retrieve_options_from_program (gc_component_t component, gc_backend_t backend,
   argv[i++] = "--gpgconf-list";
   argv[i++] = NULL;
 
-  if (only_installed && access (pgmname, X_OK))
+  if (only_installed && gnupg_access (pgmname, X_OK))
     {
       return;  /* The component is not installed.  */
     }
@@ -3016,8 +3016,9 @@ change_options_program (gc_component_t component, gc_backend_t backend,
   *dest_filenamep = dest_filename;
   *orig_filenamep = orig_filename;
 
-  /* Use open() so that we can use O_EXCL.  */
-  fd = open (src_filename, O_CREAT | O_EXCL | O_WRONLY, 0644);
+  /* Use open() so that we can use O_EXCL.
+   * FIXME: gpgrt has an x flag for quite some time now - use that.  */
+  fd = gnupg_open (src_filename, O_CREAT | O_EXCL | O_WRONLY, 0644);
   if (fd < 0)
     return -1;
   src_file = gpgrt_fdopen (fd, "w");
@@ -4055,7 +4056,7 @@ gc_apply_profile (const char *fname)
        * is installed and use that instead of the given file name.  */
       fname_buffer = xstrconcat (gnupg_datadir (), DIRSEP_S,
                                  fname, ".prf", NULL);
-      if (!access (fname_buffer, F_OK))
+      if (!gnupg_access (fname_buffer, F_OK))
         fname = fname_buffer;
     }
 

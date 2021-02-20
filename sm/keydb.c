@@ -75,33 +75,10 @@ static void unlock_all (KEYDB_HANDLE hd);
 static void
 try_make_homedir (const char *fname)
 {
-  const char *defhome = standard_homedir ();
-
-  /* Create the directory only if the supplied directory name is the
-     same as the default one.  This way we avoid to create arbitrary
-     directories when a non-default home directory is used.  To cope
-     with HOME, we do compare only the suffix if we see that the
-     default homedir does start with a tilde.  */
   if ( opt.dry_run || opt.no_homedir_creation )
     return;
 
-  if (
-#ifdef HAVE_W32_SYSTEM
-      ( !compare_filenames (fname, defhome) )
-#else
-      ( *defhome == '~'
-        && (strlen(fname) >= strlen (defhome+1)
-            && !strcmp(fname+strlen(fname)-strlen(defhome+1), defhome+1 ) ))
-      || (*defhome != '~'  && !compare_filenames( fname, defhome ) )
-#endif
-      )
-    {
-      if (gnupg_mkdir (fname, "-rwx"))
-        log_info (_("can't create directory '%s': %s\n"),
-                  fname, strerror(errno) );
-      else if (!opt.quiet )
-        log_info (_("directory '%s' created\n"), fname);
-    }
+  gnupg_maybe_make_homedir (fname, opt.quiet);
 }
 
 
@@ -113,8 +90,9 @@ try_make_homedir (const char *fname)
 static gpg_error_t
 maybe_create_keybox (char *filename, int force, int *r_created)
 {
+  gpg_err_code_t ec;
   dotlock_t lockhd = NULL;
-  FILE *fp;
+  estream_t fp;
   int rc;
   mode_t oldmask;
   char *last_slash_in_filename;
@@ -124,8 +102,8 @@ maybe_create_keybox (char *filename, int force, int *r_created)
     *r_created = 0;
 
   /* A quick test whether the filename already exists. */
-  if (!access (filename, F_OK))
-    return !access (filename, R_OK)? 0 : gpg_error (GPG_ERR_EACCES);
+  if (!gnupg_access (filename, F_OK))
+    return !gnupg_access (filename, R_OK)? 0 : gpg_error (GPG_ERR_EACCES);
 
   /* If we don't want to create a new file at all, there is no need to
      go any further - bail out right here.  */
@@ -151,7 +129,7 @@ maybe_create_keybox (char *filename, int force, int *r_created)
                                            not happen though.  */
   save_slash = *last_slash_in_filename;
   *last_slash_in_filename = 0;
-  if (access(filename, F_OK))
+  if (gnupg_access(filename, F_OK))
     {
       static int tried;
 
@@ -160,9 +138,9 @@ maybe_create_keybox (char *filename, int force, int *r_created)
           tried = 1;
           try_make_homedir (filename);
         }
-      if (access (filename, F_OK))
+      if ((ec = gnupg_access (filename, F_OK)))
         {
-          rc = gpg_error_from_syserror ();
+          rc = gpg_error (ec);
           *last_slash_in_filename = save_slash;
           goto leave;
         }
@@ -205,7 +183,7 @@ maybe_create_keybox (char *filename, int force, int *r_created)
 
   /* The file does not yet exist, create it now. */
   oldmask = umask (077);
-  fp = fopen (filename, "wb");
+  fp = es_fopen (filename, "wb");
   if (!fp)
     {
       rc = gpg_error_from_syserror ();
@@ -222,7 +200,7 @@ maybe_create_keybox (char *filename, int force, int *r_created)
   rc = _keybox_write_header_blob (fp, 0);
   if (rc)
     {
-      fclose (fp);
+      es_fclose (fp);
       log_error (_("error creating keybox '%s': %s\n"),
                  filename, gpg_strerror (rc));
       goto leave;
@@ -233,7 +211,7 @@ maybe_create_keybox (char *filename, int force, int *r_created)
   if (r_created)
     *r_created = 1;
 
-  fclose (fp);
+  es_fclose (fp);
   rc = 0;
 
  leave:
@@ -300,14 +278,15 @@ keydb_add_resource (ctrl_t ctrl, const char *url, int force, int *auto_created)
   /* see whether we can determine the filetype */
   if (rt == KEYDB_RESOURCE_TYPE_NONE)
     {
-      FILE *fp = fopen( filename, "rb" );
+      estream_t fp;
 
+      fp = es_fopen( filename, "rb" );
       if (fp)
         {
           u32 magic;
 
           /* FIXME: check for the keybox magic */
-          if (fread (&magic, 4, 1, fp) == 1 )
+          if (es_fread (&magic, 4, 1, fp) == 1 )
             {
               if (magic == 0x13579ace || magic == 0xce9a5713)
                 ; /* GDBM magic - no more support */
@@ -316,7 +295,8 @@ keydb_add_resource (ctrl_t ctrl, const char *url, int force, int *auto_created)
             }
           else /* maybe empty: assume keybox */
             rt = KEYDB_RESOURCE_TYPE_KEYBOX;
-          fclose (fp);
+
+          es_fclose (fp);
         }
       else /* no file yet: create keybox */
         rt = KEYDB_RESOURCE_TYPE_KEYBOX;

@@ -15,6 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #include <config.h>
@@ -37,13 +38,13 @@
 #endif
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <regex.h>
 #include <ctype.h>
 
 #include "../common/util.h"
 #include "../common/i18n.h"
 #include "../common/sysutils.h"
 #include "../common/init.h"
+#include "../regexp/jimregexp.h"
 
 
 enum cmd_and_opt_values
@@ -133,9 +134,11 @@ my_strusage (int level)
   const char *p;
   switch (level)
     {
+    case  9: p = "GPL-3.0-or-later"; break;
     case 11: p = "gpg-check-pattern (@GnuPG@)";
       break;
     case 13: p = VERSION; break;
+    case 14: p = GNUPG_DEF_COPYRIGHT_LINE; break;
     case 17: p = PRINTABLE_OS_NAME; break;
     case 19: p = _("Please report bugs to <@EMAIL@>.\n"); break;
 
@@ -176,8 +179,8 @@ main (int argc, char **argv )
 
   pargs.argc = &argc;
   pargs.argv = &argv;
-  pargs.flags=  1;  /* (do not remove the args) */
-  while (arg_parse (&pargs, opts) )
+  pargs.flags= ARGPARSE_FLAG_KEEP;
+  while (gnupg_argparse (NULL, &pargs, opts))
     {
       switch (pargs.r_opt)
         {
@@ -189,6 +192,8 @@ main (int argc, char **argv )
         default : pargs.err = 2; break;
 	}
     }
+  gnupg_argparse (NULL, &pargs, NULL);  /* Release internal state.  */
+
   if (log_get_errorcount(0))
     exit (2);
 
@@ -227,7 +232,7 @@ main (int argc, char **argv )
 static char *
 read_file (const char *fname, size_t *r_length)
 {
-  FILE *fp;
+  estream_t fp;
   char *buf;
   size_t buflen;
 
@@ -235,10 +240,8 @@ read_file (const char *fname, size_t *r_length)
     {
       size_t nread, bufsize = 0;
 
-      fp = stdin;
-#ifdef HAVE_DOSISH_SYSTEM
-      setmode ( fileno(fp) , O_BINARY );
-#endif
+      fp = es_stdin;
+      es_set_binary (fp);
       buf = NULL;
       buflen = 0;
 #define NCHUNK 8192
@@ -250,8 +253,8 @@ read_file (const char *fname, size_t *r_length)
           else
             buf = xrealloc (buf, bufsize+1);
 
-          nread = fread (buf+buflen, 1, NCHUNK, fp);
-          if (nread < NCHUNK && ferror (fp))
+          nread = es_fread (buf+buflen, 1, NCHUNK, fp);
+          if (nread < NCHUNK && es_ferror (fp))
             {
               log_error ("error reading '[stdin]': %s\n", strerror (errno));
               xfree (buf);
@@ -267,30 +270,30 @@ read_file (const char *fname, size_t *r_length)
     {
       struct stat st;
 
-      fp = fopen (fname, "rb");
+      fp = es_fopen (fname, "rb");
       if (!fp)
         {
           log_error ("can't open '%s': %s\n", fname, strerror (errno));
           return NULL;
         }
 
-      if (fstat (fileno(fp), &st))
+      if (fstat (es_fileno (fp), &st))
         {
           log_error ("can't stat '%s': %s\n", fname, strerror (errno));
-          fclose (fp);
+          es_fclose (fp);
           return NULL;
         }
 
       buflen = st.st_size;
       buf = xmalloc (buflen+1);
-      if (fread (buf, buflen, 1, fp) != 1)
+      if (es_fread (buf, buflen, 1, fp) != 1)
         {
           log_error ("error reading '%s': %s\n", fname, strerror (errno));
-          fclose (fp);
+          es_fclose (fp);
           xfree (buf);
           return NULL;
         }
-      fclose (fp);
+      es_fclose (fp);
     }
   buf[buflen] = 0;
   *r_length = buflen;
@@ -369,7 +372,7 @@ parse_pattern_file (char *data, size_t datalen)
             p[strlen(p)-1] = 0;  /* Remove optional delimiter.  */
           array[arrayidx].u.r.regex = xcalloc (1, sizeof (regex_t));
           rerr = regcomp (array[arrayidx].u.r.regex, p,
-                          REG_ICASE|REG_NOSUB|REG_EXTENDED);
+                          REG_ICASE|REG_EXTENDED);
           if (rerr)
             {
               char *rerrbuf = get_regerror (rerr, array[arrayidx].u.r.regex);
@@ -491,4 +494,3 @@ process (FILE *fp, pattern_t *patarray)
   if (opt.verbose)
     log_info ("no input line matches the pattern - accepted\n");
 }
-

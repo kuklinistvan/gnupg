@@ -93,6 +93,9 @@ msgstr "不匹配 - 请重试"
 #. the pinentry.  The %s is the actual error message, the
 #. two %d give the current and maximum number of tries.
 #. Do not translate the "SETERROR" keyword.
+#. TRANSLATORS: The string is appended to an error message in
+#. the pinentry.  The %s is the actual error message, the
+#. two %d give the current and maximum number of tries.
 #, c-format
 msgid "SETERROR %s (try %d of %d)"
 msgstr ""
@@ -393,14 +396,6 @@ msgstr "无效的调试级别‘%s’\n"
 #, c-format
 msgid "selected digest algorithm is invalid\n"
 msgstr "所选的散列算法无效\n"
-
-#, c-format
-msgid "Note: no default option file '%s'\n"
-msgstr "注意：没有默认配置文件‘%s’\n"
-
-#, c-format
-msgid "option file '%s': %s\n"
-msgstr "选项文件‘%s’：%s\n"
 
 #, c-format
 msgid "reading options from '%s'\n"
@@ -1003,8 +998,26 @@ msgstr "无效的命令"
 msgid "invalid alias definition"
 msgstr "无效的别名定义"
 
+msgid "permission error"
+msgstr ""
+
 msgid "out of core"
 msgstr "out of core"
+
+#, fuzzy
+#| msgid "invalid command"
+msgid "invalid meta command"
+msgstr "无效的命令"
+
+#, fuzzy
+#| msgid "unknown command '%s'\n"
+msgid "unknown meta command"
+msgstr "未知命令‘%s’\n"
+
+#, fuzzy
+#| msgid "unexpected armor: "
+msgid "unexpected meta command"
+msgstr "与预期不符的字符封装： "
 
 msgid "invalid option"
 msgstr "无效的选项"
@@ -1034,12 +1047,20 @@ msgid "command \"%.50s\" is ambiguous\n"
 msgstr "命令 “%.50s” 含义模糊\n"
 
 #, c-format
-msgid "out of core\n"
-msgstr "out of core\n"
-
-#, c-format
 msgid "invalid option \"%.50s\"\n"
 msgstr "无效的选项 “%.50s”\n"
+
+#, c-format
+msgid "Note: no default option file '%s'\n"
+msgstr "注意：没有默认配置文件‘%s’\n"
+
+#, c-format
+msgid "option file '%s': %s\n"
+msgstr "选项文件‘%s’：%s\n"
+
+#, c-format
+msgid "Note: ignoring option \"--%s\" due to global config\n"
+msgstr ""
 
 #, c-format
 msgid "conversion from '%s' to '%s' not available\n"
@@ -1676,6 +1697,14 @@ msgid "WARNING: '%s' is an empty file\n"
 msgstr "警告：‘%s’是一个空文件\n"
 
 #, c-format
+msgid "cipher algorithm '%s' may not be used in %s mode\n"
+msgstr "密文算法 ‘%s’ 可能不能被用于 %s 模式\n"
+
+#, c-format
+msgid "digest algorithm '%s' may not be used in %s mode\n"
+msgstr "摘要算法‘%s’不能在 %s 模式下使用\n"
+
+#, c-format
 msgid "reading from '%s'\n"
 msgstr "正在从‘%s’读取\n"
 
@@ -1683,10 +1712,6 @@ msgstr "正在从‘%s’读取\n"
 msgid ""
 "WARNING: forcing symmetric cipher %s (%d) violates recipient preferences\n"
 msgstr "警告： 强制对称密文 %s (%d) 与接收者的偏好设置冲突\n"
-
-#, c-format
-msgid "cipher algorithm '%s' may not be used in %s mode\n"
-msgstr "密文算法 ‘%s’ 可能不能被用于 %s 模式\n"
 
 #, c-format
 msgid "WARNING: key %s is not suitable for encryption in %s mode\n"
@@ -1938,6 +1963,11 @@ msgstr "快速签名一个密钥"
 msgid "quickly sign a key locally"
 msgstr "快速本地签名一个密钥"
 
+#, fuzzy
+#| msgid "quickly revoke a user-id"
+msgid "quickly revoke a key signature"
+msgstr "快速吊销一个用户标识"
+
 msgid "sign a key"
 msgstr "签名一个密钥"
 
@@ -2184,10 +2214,6 @@ msgid "(use \"help\" to list choices)\n"
 msgstr "（使用“help”来列出选择）\n"
 
 #, c-format
-msgid "Note: old default options file '%s' ignored\n"
-msgstr "注意：旧的默认配置文件‘%s’已被忽略\n"
-
-#, c-format
 msgid "Note: %s is not for normal use!\n"
 msgstr "注意：%s 不适用于一般使用！\n"
 
@@ -2387,10 +2413,6 @@ msgstr "无效的个人压缩算法首选项\n"
 #, c-format
 msgid "%s does not yet work with %s\n"
 msgstr "%s 尚不能和 %s 并用\n"
-
-#, c-format
-msgid "digest algorithm '%s' may not be used in %s mode\n"
-msgstr "摘要算法‘%s’不能在 %s 模式下使用\n"
 
 #, c-format
 msgid "compression algorithm '%s' may not be used in %s mode\n"
@@ -2924,6 +2946,60 @@ msgid "key %s: direct key signature added\n"
 msgstr "密钥 %s：已添加直接密钥签名\n"
 
 #, c-format
+msgid "error allocating memory: %s\n"
+msgstr "分配内存时出现错误：%s\n"
+
+#, fuzzy, c-format
+#| msgid "key %s: unsupported public key algorithm\n"
+msgid "can't check signature with unsupported public-key algorithm (%d): %s.\n"
+msgstr "密钥 %s：不支持的公钥算法\n"
+
+#, fuzzy, c-format
+#| msgid "card does not support digest algorithm %s\n"
+msgid ""
+"can't check signature with unsupported message-digest algorithm %d: %s.\n"
+msgstr "卡片不支持摘要算法 %s\n"
+
+#, fuzzy
+#| msgid "Good signature from"
+msgid " (reordered signatures follow)"
+msgstr "良好签名来自于"
+
+#, fuzzy, c-format
+#| msgid "key %s: %s\n"
+msgid "key %s:\n"
+msgstr "密钥 %s： %s\n"
+
+#, fuzzy, c-format
+#| msgid "User ID \"%s\": %d signature removed\n"
+#| msgid_plural "User ID \"%s\": %d signatures removed\n"
+msgid "%d duplicate signature removed\n"
+msgid_plural "%d duplicate signatures removed\n"
+msgstr[0] "用户标识 “%s”：%d 个签名被移除\n"
+
+#, c-format
+msgid "%d signature not checked due to a missing key\n"
+msgid_plural "%d signatures not checked due to missing keys\n"
+msgstr[0] "%d 个签名因密钥遗失而未被检查\n"
+
+#, c-format
+msgid "%d bad signature\n"
+msgid_plural "%d bad signatures\n"
+msgstr[0] "%d 个损坏签名\n"
+
+#, fuzzy, c-format
+#| msgid "Good signature from"
+msgid "%d signature reordered\n"
+msgid_plural "%d signatures reordered\n"
+msgstr[0] "良好签名来自于"
+
+#, c-format
+msgid ""
+"Warning: errors found and only checked self-signatures, run '%s' to check "
+"all signatures.\n"
+msgstr ""
+
+#, c-format
 msgid "error creating keybox '%s': %s\n"
 msgstr "创建钥匙箱‘%s’时出现错误：%s\n"
 
@@ -3407,6 +3483,15 @@ msgid "Nothing to sign.\n"
 msgstr "没有可被签名的东西。\n"
 
 #, c-format
+msgid "Not signed by you.\n"
+msgstr "并非由您签名。\n"
+
+#, fuzzy, c-format
+#| msgid "checking created signature failed: %s\n"
+msgid "revoking the key signature failed: %s\n"
+msgstr "检查已建立的签名时发生错误： %s\n"
+
+#, c-format
 msgid "'%s' is not a valid expiration time\n"
 msgstr "‘%s’不是一个有效的过期时间\n"
 
@@ -3417,6 +3502,9 @@ msgstr "“%s” 不是一个正确的指纹\n"
 #, c-format
 msgid "subkey \"%s\" not found\n"
 msgstr "子密钥 “%s” 未找到\n"
+
+msgid "AEAD: "
+msgstr "AEAD： "
 
 msgid "Digest: "
 msgstr "摘要： "
@@ -3685,9 +3773,6 @@ msgstr "您确定您仍然想要吊销它吗？(y/N) "
 
 msgid "Create a revocation certificate for this signature? (y/N) "
 msgstr "要为这份签名生成一份吊销证书吗？(y/N) "
-
-msgid "Not signed by you.\n"
-msgstr "并非由您签名。\n"
 
 #, c-format
 msgid "You have signed these user IDs on key %s:\n"
@@ -4219,16 +4304,6 @@ msgstr "签名注记： "
 msgid "%d good signature\n"
 msgid_plural "%d good signatures\n"
 msgstr[0] "%d 个良好签名\n"
-
-#, c-format
-msgid "%d bad signature\n"
-msgid_plural "%d bad signatures\n"
-msgstr[0] "%d 个损坏签名\n"
-
-#, c-format
-msgid "%d signature not checked due to a missing key\n"
-msgid_plural "%d signatures not checked due to missing keys\n"
-msgstr[0] "%d 个签名因密钥遗失而未被检查\n"
 
 #, c-format
 msgid "%d signature not checked due to an error\n"
@@ -5969,6 +6044,25 @@ msgstr ""
 "语法：kbxutil [选项] [文件]\n"
 "列出、导出或导入钥匙箱数据\n"
 
+#. TRANSLATORS: Put a \x1f right before a colon.  This can be
+#. * used by pinentry to nicely align the names and values.  Keep
+#. * the %s at the start and end of the string.
+#, c-format
+msgid "%sNumber: %s%%0AHolder: %s%s"
+msgstr "%s数字: %s%%0A持有者: %s%s"
+
+#. TRANSLATORS: This is the number of remaining attempts to
+#. * enter a PIN.  Use %%0A (double-percent,0A) for a linefeed.
+#, c-format
+msgid "Remaining attempts: %d"
+msgstr "剩余尝试：%d"
+
+msgid "||Please enter the PIN for the key to create qualified signatures."
+msgstr "||请为这个密钥输入 PIN 以创建合格的签名。"
+
+msgid "||Please enter the PIN for the standard keys."
+msgstr "||请输入标准密钥的 PIN。"
+
 #, c-format
 msgid "RSA modulus missing or not of size %d bits\n"
 msgstr "RSA 余数缺失或者不是 %d 位长\n"
@@ -5988,9 +6082,6 @@ msgstr "尚未变更 NullPIN\n"
 msgid "|N|Please enter a new PIN for the standard keys."
 msgstr "|N|请为标准密钥输入一个新的 PIN。"
 
-msgid "||Please enter the PIN for the standard keys."
-msgstr "||请输入标准密钥的 PIN。"
-
 msgid "|NP|Please enter a new PIN Unblocking Code (PUK) for the standard keys."
 msgstr "|NP|请为标准密钥输入一个新的 PIN 解锁码（PUK）。"
 
@@ -5999,9 +6090,6 @@ msgstr "|NP|请输入标准密钥的 PIN 解锁码（PUK）。"
 
 msgid "|N|Please enter a new PIN for the key to create qualified signatures."
 msgstr "|N|请为这个密钥输入一个新的 PIN 以创建合格的签名。"
-
-msgid "||Please enter the PIN for the key to create qualified signatures."
-msgstr "||请为这个密钥输入 PIN 以创建合格的签名。"
 
 msgid ""
 "|NP|Please enter a new PIN Unblocking Code (PUK) for the key to create "
@@ -6055,16 +6143,6 @@ msgstr "读取公钥失败：%s\n"
 #, c-format
 msgid "%sNumber: %s%%0AHolder: %s%%0ACounter: %lu%s"
 msgstr "%s数字: %s%%0A持有者: %s%%0A计数: %lu%s"
-
-#, c-format
-msgid "%sNumber: %s%%0AHolder: %s%s"
-msgstr "%s数字: %s%%0A持有者: %s%s"
-
-#. TRANSLATORS: This is the number of remaining attempts to
-#. * enter a PIN.  Use %%0A (double-percent,0A) for a linefeed.
-#, c-format
-msgid "Remaining attempts: %d"
-msgstr "剩余尝试：%d"
 
 #, c-format
 msgid "using default PIN as %s\n"
@@ -6308,12 +6386,20 @@ msgid "certificate policy not allowed"
 msgstr "证书策略不被允许"
 
 #, c-format
+msgid "failed to get the fingerprint\n"
+msgstr "获取指纹失败\n"
+
+#, c-format
 msgid "looking up issuer at external location\n"
 msgstr "在外部位置查找签发者\n"
 
 #, c-format
 msgid "number of issuers matching: %d\n"
 msgstr "匹配的签发者数目：%d\n"
+
+#, c-format
+msgid "can't get authorityInfoAccess: %s\n"
+msgstr "无法获取 authorityInfoAccess：%s\n"
 
 #, c-format
 msgid "looking up issuer from the Dirmngr cache\n"
@@ -6475,6 +6561,10 @@ msgstr "使用的验证模型：%s"
 #, c-format
 msgid "a %u bit hash is not valid for a %u bit %s key\n"
 msgstr "一个 %u 位的散列对于一个 %u 位的 %s 密钥是无效的\n"
+
+#, c-format
+msgid "out of core\n"
+msgstr "out of core\n"
 
 #, c-format
 msgid "(this is the MD2 algorithm)\n"
@@ -6892,10 +6982,6 @@ msgid "error reading input: %s\n"
 msgstr "读取输入时出现错误：%s\n"
 
 #, c-format
-msgid "failed to get the fingerprint\n"
-msgstr "获取指纹失败\n"
-
-#, c-format
 msgid "problem looking for existing certificate: %s\n"
 msgstr "查找现存证书时出现问题：%s\n"
 
@@ -6981,9 +7067,10 @@ msgstr "已签名 "
 msgid "[date not given]"
 msgstr "[日期未指定]"
 
-#, c-format
-msgid " using certificate ID 0x%08lX\n"
-msgstr " 正在使用的证书标识 0x%08lX\n"
+#, fuzzy, c-format
+#| msgid "algorithm: %s"
+msgid "algorithm:"
+msgstr "算法： %s"
 
 #, c-format
 msgid ""
@@ -7312,20 +7399,20 @@ msgid "error getting data from cache file: %s\n"
 msgstr "从缓存文件中获取数据时出现错误：%s\n"
 
 #, c-format
-msgid "unknown hash algorithm '%s'\n"
-msgstr "未知的散列算法‘%s’\n"
-
-#, c-format
-msgid "gcry_md_open for algorithm %d failed: %s\n"
-msgstr "算法 %d 的 gcry_md_open 方法失败：%s\n"
-
-#, c-format
 msgid "got an invalid S-expression from libksba\n"
 msgstr "从  libksba 获得了无效的 S 表达式\n"
 
 #, c-format
 msgid "converting S-expression failed: %s\n"
 msgstr "转换 S 表达式时失败：%s\n"
+
+#, c-format
+msgid "unknown hash algorithm '%s'\n"
+msgstr "未知的散列算法‘%s’\n"
+
+#, c-format
+msgid "gcry_md_open for algorithm %d failed: %s\n"
+msgstr "算法 %d 的 gcry_md_open 方法失败：%s\n"
 
 #, c-format
 msgid "creating S-expression failed: %s\n"
@@ -7926,10 +8013,6 @@ msgid "redirection changed to '%s'\n"
 msgstr "正在写入‘%s’\n"
 
 #, c-format
-msgid "error allocating memory: %s\n"
-msgstr "分配内存时出现错误：%s\n"
-
-#, c-format
 msgid "error printing log line: %s\n"
 msgstr "打印日志行时出现错误：%s\n"
 
@@ -8072,10 +8155,6 @@ msgstr "调用者没有返回签发的证书\n"
 #, c-format
 msgid "failed to allocate OCSP context: %s\n"
 msgstr "分配 OCSP 上下文时失败：%s\n"
-
-#, c-format
-msgid "can't get authorityInfoAccess: %s\n"
-msgstr "无法获取 authorityInfoAccess：%s\n"
 
 #, c-format
 msgid "no default OCSP responder defined\n"
@@ -8502,146 +8581,6 @@ msgstr "组件未找到"
 msgid "No argument allowed"
 msgstr "没有参数被允许"
 
-msgid ""
-"@\n"
-"Commands:\n"
-" "
-msgstr ""
-"@\n"
-"命令：\n"
-" "
-
-msgid "decryption modus"
-msgstr "解密模式"
-
-msgid "encryption modus"
-msgstr "加密模式"
-
-#, fuzzy
-msgid "tool class (confucius)"
-msgstr "工具类（confucius）"
-
-msgid "program filename"
-msgstr "程序文件名"
-
-msgid "secret key file (required)"
-msgstr "私钥文件（必须）"
-
-msgid "input file name (default stdin)"
-msgstr "输入文件名（默认为标准输入 stdin）"
-
-msgid "Usage: symcryptrun [options] (-h for help)"
-msgstr "用法：symcryptrun [选项] (-h 获取帮助)"
-
-msgid ""
-"Syntax: symcryptrun --class CLASS --program PROGRAM --keyfile KEYFILE "
-"[options...] COMMAND [inputfile]\n"
-"Call a simple symmetric encryption tool\n"
-msgstr ""
-"语法：symcryptrun --class CLASS --program PROGRAM --keyfile KEYFILE "
-"[options...] COMMAND [inputfile]\n"
-"调用一个简单的对称加密工具\n"
-
-#, c-format
-msgid "%s on %s aborted with status %i\n"
-msgstr "%s 在 %s 上被取消，返回状态 %i\n"
-
-#, c-format
-msgid "%s on %s failed with status %i\n"
-msgstr "%s 在 %s 上失败，返回状态 %i\n"
-
-#, c-format
-msgid "can't create temporary directory '%s': %s\n"
-msgstr "无法创建临时目录‘%s’：%s\n"
-
-#, c-format
-msgid "could not open %s for writing: %s\n"
-msgstr "不能为写入打开 %s ：%s\n"
-
-#, c-format
-msgid "error writing to %s: %s\n"
-msgstr "写入 %s 时出现错误：%s\n"
-
-#, c-format
-msgid "error reading from %s: %s\n"
-msgstr "读取 %s 时出现错误：%s\n"
-
-#, c-format
-msgid "error closing %s: %s\n"
-msgstr "关闭 %s 时出现错误：%s\n"
-
-#, c-format
-msgid "no --program option provided\n"
-msgstr "未提供 --program 选项\n"
-
-#, c-format
-msgid "only --decrypt and --encrypt are supported\n"
-msgstr "只要 --decrypt 和 --encrypt 被支持\n"
-
-#, c-format
-msgid "no --keyfile option provided\n"
-msgstr "没有提供 --keyfile 选项\n"
-
-#, c-format
-msgid "cannot allocate args vector\n"
-msgstr "无法分配 args 向量\n"
-
-#, c-format
-msgid "could not create pipe: %s\n"
-msgstr "无法创建管道：%s\n"
-
-#, c-format
-msgid "could not create pty: %s\n"
-msgstr "无法创建 pty：%s\n"
-
-#, c-format
-msgid "could not fork: %s\n"
-msgstr "无法执行 fork 方法：%s\n"
-
-#, c-format
-msgid "execv failed: %s\n"
-msgstr "execv 方法失败：%s\n"
-
-#, c-format
-msgid "select failed: %s\n"
-msgstr "select 失败：%s\n"
-
-#, c-format
-msgid "read failed: %s\n"
-msgstr "read 失败：%s\n"
-
-#, c-format
-msgid "pty read failed: %s\n"
-msgstr "pty 读取失败：%s\n"
-
-#, c-format
-msgid "waitpid failed: %s\n"
-msgstr "waitpid 方法失败：%s\n"
-
-#, c-format
-msgid "child aborted with status %i\n"
-msgstr "子进程被终止，返回状态为 %i\n"
-
-#, c-format
-msgid "cannot allocate infile string: %s\n"
-msgstr "无法分配 infile 字符串：%s\n"
-
-#, c-format
-msgid "cannot allocate outfile string: %s\n"
-msgstr "无法分配 outfile 字符串：%s\n"
-
-#, c-format
-msgid "either %s or %s must be given\n"
-msgstr "必须给定 %s 或 %s 中的任意一个\n"
-
-#, c-format
-msgid "no class provided\n"
-msgstr "没有给定类\n"
-
-#, c-format
-msgid "class %s is not supported\n"
-msgstr "类 %s 不被支持\n"
-
 msgid "Usage: gpg-check-pattern [options] patternfile (-h for help)\n"
 msgstr "用法：gpg-check-pattern [选项] patternfile （-h 获取帮助）\n"
 
@@ -8651,6 +8590,127 @@ msgid ""
 msgstr ""
 "语法：gpg-check-pattern [选项] patternfile\n"
 "按照 patternfile 检查一个由标准输入（stdin）给定的密码\n"
+
+#~ msgid "Note: old default options file '%s' ignored\n"
+#~ msgstr "注意：旧的默认配置文件‘%s’已被忽略\n"
+
+#~ msgid ""
+#~ "@\n"
+#~ "Commands:\n"
+#~ " "
+#~ msgstr ""
+#~ "@\n"
+#~ "命令：\n"
+#~ " "
+
+#~ msgid "decryption modus"
+#~ msgstr "解密模式"
+
+#~ msgid "encryption modus"
+#~ msgstr "加密模式"
+
+#, fuzzy
+#~ msgid "tool class (confucius)"
+#~ msgstr "工具类（confucius）"
+
+#~ msgid "program filename"
+#~ msgstr "程序文件名"
+
+#~ msgid "secret key file (required)"
+#~ msgstr "私钥文件（必须）"
+
+#~ msgid "input file name (default stdin)"
+#~ msgstr "输入文件名（默认为标准输入 stdin）"
+
+#~ msgid "Usage: symcryptrun [options] (-h for help)"
+#~ msgstr "用法：symcryptrun [选项] (-h 获取帮助)"
+
+#~ msgid ""
+#~ "Syntax: symcryptrun --class CLASS --program PROGRAM --keyfile KEYFILE "
+#~ "[options...] COMMAND [inputfile]\n"
+#~ "Call a simple symmetric encryption tool\n"
+#~ msgstr ""
+#~ "语法：symcryptrun --class CLASS --program PROGRAM --keyfile KEYFILE "
+#~ "[options...] COMMAND [inputfile]\n"
+#~ "调用一个简单的对称加密工具\n"
+
+#~ msgid "%s on %s aborted with status %i\n"
+#~ msgstr "%s 在 %s 上被取消，返回状态 %i\n"
+
+#~ msgid "%s on %s failed with status %i\n"
+#~ msgstr "%s 在 %s 上失败，返回状态 %i\n"
+
+#~ msgid "can't create temporary directory '%s': %s\n"
+#~ msgstr "无法创建临时目录‘%s’：%s\n"
+
+#~ msgid "could not open %s for writing: %s\n"
+#~ msgstr "不能为写入打开 %s ：%s\n"
+
+#~ msgid "error writing to %s: %s\n"
+#~ msgstr "写入 %s 时出现错误：%s\n"
+
+#~ msgid "error reading from %s: %s\n"
+#~ msgstr "读取 %s 时出现错误：%s\n"
+
+#~ msgid "error closing %s: %s\n"
+#~ msgstr "关闭 %s 时出现错误：%s\n"
+
+#~ msgid "no --program option provided\n"
+#~ msgstr "未提供 --program 选项\n"
+
+#~ msgid "only --decrypt and --encrypt are supported\n"
+#~ msgstr "只要 --decrypt 和 --encrypt 被支持\n"
+
+#~ msgid "no --keyfile option provided\n"
+#~ msgstr "没有提供 --keyfile 选项\n"
+
+#~ msgid "cannot allocate args vector\n"
+#~ msgstr "无法分配 args 向量\n"
+
+#~ msgid "could not create pipe: %s\n"
+#~ msgstr "无法创建管道：%s\n"
+
+#~ msgid "could not create pty: %s\n"
+#~ msgstr "无法创建 pty：%s\n"
+
+#~ msgid "could not fork: %s\n"
+#~ msgstr "无法执行 fork 方法：%s\n"
+
+#~ msgid "execv failed: %s\n"
+#~ msgstr "execv 方法失败：%s\n"
+
+#~ msgid "select failed: %s\n"
+#~ msgstr "select 失败：%s\n"
+
+#~ msgid "read failed: %s\n"
+#~ msgstr "read 失败：%s\n"
+
+#~ msgid "pty read failed: %s\n"
+#~ msgstr "pty 读取失败：%s\n"
+
+#~ msgid "waitpid failed: %s\n"
+#~ msgstr "waitpid 方法失败：%s\n"
+
+#~ msgid "child aborted with status %i\n"
+#~ msgstr "子进程被终止，返回状态为 %i\n"
+
+#~ msgid "cannot allocate infile string: %s\n"
+#~ msgstr "无法分配 infile 字符串：%s\n"
+
+#~ msgid "cannot allocate outfile string: %s\n"
+#~ msgstr "无法分配 outfile 字符串：%s\n"
+
+#~ msgid "either %s or %s must be given\n"
+#~ msgstr "必须给定 %s 或 %s 中的任意一个\n"
+
+#~ msgid "no class provided\n"
+#~ msgstr "没有给定类\n"
+
+#~ msgid "class %s is not supported\n"
+#~ msgstr "类 %s 不被支持\n"
+
+#~ msgid " using certificate ID 0x%08lX\n"
+#~ msgstr " 正在使用的证书标识 0x%08lX\n"
 
 #, fuzzy
 #~| msgid "option '%s' may not be used in %s mode\n"
@@ -8732,9 +8792,6 @@ msgstr ""
 
 #~ msgid "         \"%s\": preference for AEAD algorithm %s\n"
 #~ msgstr "         \"%s\"：关于 AEAD 算法 %s 的偏好设置\n"
-
-#~ msgid "AEAD: "
-#~ msgstr "AEAD： "
 
 #~ msgid "too many AEAD preferences\n"
 #~ msgstr "过多的 AEAD 偏好设置\n"

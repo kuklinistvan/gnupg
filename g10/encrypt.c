@@ -110,7 +110,7 @@ encrypt_seskey (DEK *dek, DEK **seskey, byte *enckey)
 
 
 /* Shall we use the MDC?  Yes - unless rfc-2440 compatibility is
- * requested. */
+ * requested.  Must return 1 or 0. */
 int
 use_mdc (pk_list_t pk_list,int algo)
 {
@@ -191,20 +191,15 @@ encrypt_simple (const char *filename, int mode, int use_seskey)
   cfx.dek = NULL;
   if ( mode )
     {
-      int canceled;
-
-      s2k = xmalloc_clear( sizeof *s2k );
-      s2k->mode = opt.s2k_mode;
-      s2k->hash_algo = S2K_DIGEST_ALGO;
-      cfx.dek = passphrase_to_dek (default_cipher_algo (), s2k, 1, 0,
-                                   NULL, &canceled);
-      if ( !cfx.dek || !cfx.dek->keylen )
+      rc = setup_symkey (&s2k, &cfx.dek);
+      if (rc)
         {
-          rc = gpg_error (canceled? GPG_ERR_CANCELED:GPG_ERR_INV_PASSPHRASE);
-          xfree (cfx.dek);
-          xfree (s2k);
           iobuf_close (inp);
-          log_error (_("error creating passphrase: %s\n"), gpg_strerror (rc));
+          if (gpg_err_code (rc) == GPG_ERR_CIPHER_ALGO
+              || gpg_err_code (rc) == GPG_ERR_DIGEST_ALGO)
+            ; /* Error has already been printed.  */
+          else
+            log_error (_("error creating passphrase: %s\n"), gpg_strerror (rc));
           release_progress_context (pfx);
           return rc;
         }
@@ -378,22 +373,43 @@ encrypt_simple (const char *filename, int mode, int use_seskey)
 }
 
 
-int
-setup_symkey (STRING2KEY **symkey_s2k,DEK **symkey_dek)
+gpg_error_t
+setup_symkey (STRING2KEY **symkey_s2k, DEK **symkey_dek)
 {
   int canceled;
+  int defcipher;
+  int s2kdigest;
 
-  *symkey_s2k=xmalloc_clear(sizeof(STRING2KEY));
+  defcipher = default_cipher_algo ();
+  if (!gnupg_cipher_is_allowed (opt.compliance, 1, defcipher,
+                                GCRY_CIPHER_MODE_CFB))
+    {
+      log_error (_("cipher algorithm '%s' may not be used in %s mode\n"),
+		 openpgp_cipher_algo_name (defcipher),
+		 gnupg_compliance_option_string (opt.compliance));
+      return gpg_error (GPG_ERR_CIPHER_ALGO);
+    }
+
+  s2kdigest = S2K_DIGEST_ALGO;
+  if (!gnupg_digest_is_allowed (opt.compliance, 1, s2kdigest))
+    {
+      log_error (_("digest algorithm '%s' may not be used in %s mode\n"),
+		 gcry_md_algo_name (s2kdigest),
+		 gnupg_compliance_option_string (opt.compliance));
+      return gpg_error (GPG_ERR_DIGEST_ALGO);
+    }
+
+  *symkey_s2k = xmalloc_clear (sizeof **symkey_s2k);
   (*symkey_s2k)->mode = opt.s2k_mode;
-  (*symkey_s2k)->hash_algo = S2K_DIGEST_ALGO;
+  (*symkey_s2k)->hash_algo = s2kdigest;
 
-  *symkey_dek = passphrase_to_dek (opt.s2k_cipher_algo,
+  *symkey_dek = passphrase_to_dek (defcipher,
                                    *symkey_s2k, 1, 0, NULL, &canceled);
-  if(!*symkey_dek || !(*symkey_dek)->keylen)
+  if (!*symkey_dek || !(*symkey_dek)->keylen)
     {
       xfree(*symkey_dek);
       xfree(*symkey_s2k);
-      return gpg_error (canceled?GPG_ERR_CANCELED:GPG_ERR_BAD_PASSPHRASE);
+      return gpg_error (canceled?GPG_ERR_CANCELED:GPG_ERR_INV_PASSPHRASE);
     }
 
   return 0;
@@ -619,15 +635,15 @@ encrypt_crypt (ctrl_t ctrl, int filefd, const char *filename,
         PKT_public_key *pk = pkr->pk;
         unsigned int nbits = nbits_from_pk (pk);
 
-        if (!gnupg_pk_is_compliant (opt.compliance,
-                                    pk->pubkey_algo, pk->pkey, nbits, NULL))
+        if (!gnupg_pk_is_compliant (opt.compliance, pk->pubkey_algo, 0,
+                                    pk->pkey, nbits, NULL))
           log_info (_("WARNING: key %s is not suitable for encryption"
                       " in %s mode\n"),
                     keystr_from_pk (pk),
                     gnupg_compliance_option_string (opt.compliance));
 
         if (compliant
-            && !gnupg_pk_is_compliant (CO_DE_VS, pk->pubkey_algo, pk->pkey,
+            && !gnupg_pk_is_compliant (CO_DE_VS, pk->pubkey_algo, 0, pk->pkey,
                                        nbits, NULL))
           compliant = 0;
       }
@@ -660,7 +676,7 @@ encrypt_crypt (ctrl_t ctrl, int filefd, const char *filename,
 
   make_session_key (cfx.dek);
   if (DBG_CRYPTO)
-    log_printhex ("DEK is: ", cfx.dek->key, cfx.dek->keylen );
+    log_printhex (cfx.dek->key, cfx.dek->keylen, "DEK is: ");
 
   rc = write_pubkey_enc_from_list (ctrl, pk_list, cfx.dek, out);
   if (rc)
@@ -854,7 +870,7 @@ encrypt_filter (void *opaque, int control,
 
           make_session_key ( efx->cfx.dek );
           if (DBG_CRYPTO)
-            log_printhex ("DEK is: ", efx->cfx.dek->key, efx->cfx.dek->keylen);
+            log_printhex (efx->cfx.dek->key, efx->cfx.dek->keylen, "DEK is: ");
 
           rc = write_pubkey_enc_from_list (efx->ctrl,
                                            efx->pk_list, efx->cfx.dek, a);

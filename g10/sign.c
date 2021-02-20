@@ -395,7 +395,8 @@ do_sign (ctrl_t ctrl, PKT_public_key *pksk, PKT_signature *sig,
       goto leave;
     }
 
-  if (! gnupg_pk_is_allowed (opt.compliance, PK_USE_SIGNING, pksk->pubkey_algo,
+  if (! gnupg_pk_is_allowed (opt.compliance, PK_USE_SIGNING,
+                             pksk->pubkey_algo, 0,
                              pksk->pkey, nbits_from_pk (pksk), NULL))
     {
       log_error (_("key %s may not be used for signing in %s mode\n"),
@@ -461,7 +462,12 @@ do_sign (ctrl_t ctrl, PKT_public_key *pksk, PKT_signature *sig,
 
  leave:
   if (err)
-    log_error (_("signing failed: %s\n"), gpg_strerror (err));
+    {
+      log_error (_("signing failed: %s\n"), gpg_strerror (err));
+      if (gpg_err_source (err) == GPG_ERR_SOURCE_SCD
+          && gpg_err_code (err) == GPG_ERR_INV_ID)
+        print_further_info ("a reason might be a card with replaced keys");
+    }
   else
     {
       if (opt.verbose)
@@ -533,7 +539,7 @@ openpgp_card_v1_p (PKT_public_key *pk)
 }
 
 
-
+/* Get a matching hash algorithm for DSA and ECDSA.  */
 static int
 match_dsa_hash (unsigned int qbytes)
 {
@@ -582,7 +588,7 @@ hash_for (PKT_public_key *pk)
     {
       return opt.def_digest_algo;
     }
-  else if (recipient_digest_algo)
+  else if (recipient_digest_algo && !is_weak_digest (recipient_digest_algo))
     {
       return recipient_digest_algo;
     }
@@ -608,9 +614,13 @@ hash_for (PKT_public_key *pk)
 	 160-bit hash unless --enable-dsa2 is set, in which case act
 	 like a new DSA key that just happens to have a 160-bit q
 	 (i.e. allow truncation).  If q is not 160, by definition it
-	 must be a new DSA key. */
+	 must be a new DSA key.  We ignore the personal_digest_prefs
+	 for ECDSA because they should always macth the curve and
+	 truncated hashes are not useful either.  Even worse,
+	 smartcards may reject non matching hash lengths for curves
+	 (e.g. using SHA-512 with brainpooolP385r1 on a Yubikey).  */
 
-      if (opt.personal_digest_prefs)
+      if (pk->pubkey_algo == PUBKEY_ALGO_DSA && opt.personal_digest_prefs)
 	{
 	  prefitem_t *prefs;
 
@@ -860,6 +870,8 @@ write_signature_packets (ctrl_t ctrl,
           else
             err = 0;
         }
+      else
+        err = 0;  /* Actually never reached.  */
       hash_sigversion_to_magic (md, sig);
       gcry_md_final (md);
 
@@ -900,7 +912,8 @@ write_signature_packets (ctrl_t ctrl,
  * and ignore the detached mode.  Sign the file with all secret keys
  * which can be taken from LOCUSR, if this is NULL, use the default one
  * If ENCRYPTFLAG is true, use REMUSER (or ask if it is NULL) to encrypt the
- * signed data for these users.
+ * signed data for these users.  If ENCRYPTFLAG is 2 symmetric encryption
+ * is also used.
  * If OUTFILE is not NULL; this file is used for output and the function
  * does not ask for overwrite permission; output is then always
  * uncompressed, non-armored and in binary mode.
@@ -1030,17 +1043,16 @@ sign_file (ctrl_t ctrl, strlist_t filenames, int detached, strlist_t locusr,
 	       select_algo_from_prefs(pk_list,PREFTYPE_HASH,
 				      opt.def_digest_algo,
 				      NULL)!=opt.def_digest_algo)
-	  log_info(_("WARNING: forcing digest algorithm %s (%d)"
-		     " violates recipient preferences\n"),
-		   gcry_md_algo_name (opt.def_digest_algo),
-		   opt.def_digest_algo );
+              log_info(_("WARNING: forcing digest algorithm %s (%d)"
+                         " violates recipient preferences\n"),
+                       gcry_md_algo_name (opt.def_digest_algo),
+                       opt.def_digest_algo );
 	  }
 	else
 	  {
-	    int algo, smartcard=0;
-	    union pref_hint hint;
-
-            hint.digest_length = 0;
+	    int algo;
+            int conflict = 0;
+	    struct pref_hint hint = { 0 };
 
 	    /* Of course, if the recipient asks for something
 	       unreasonable (like the wrong hash for a DSA key) then
@@ -1068,32 +1080,44 @@ sign_file (ctrl_t ctrl, strlist_t filenames, int detached, strlist_t locusr,
                                         (sk_rover->pk->pkey[1]));
 
 		    if (sk_rover->pk->pubkey_algo == PUBKEY_ALGO_ECDSA)
-		      temp_hashlen = ecdsa_qbits_from_Q (temp_hashlen);
-		    temp_hashlen = (temp_hashlen+7)/8;
+                      {
+                        temp_hashlen = ecdsa_qbits_from_Q (temp_hashlen);
+                        if (!temp_hashlen)
+                          conflict = 1;  /* Better don't use the prefs. */
+                        temp_hashlen = (temp_hashlen+7)/8;
+                        /* Fixup for that funny nistp521 (yes, 521)
+                         * were we need to use a 512 bit hash algo.  */
+                        if (temp_hashlen == 66)
+                          temp_hashlen = 64;
+                      }
+                    else
+                      temp_hashlen = (temp_hashlen+7)/8;
 
 		    /* Pick a hash that is large enough for our
-		       largest q */
+		       largest q or matches our Q but if tehreare
+		       several of them we run into a conflict and
+		       don't use the preferences.  */
 
-		    if (hint.digest_length<temp_hashlen)
-		      hint.digest_length=temp_hashlen;
+		    if (hint.digest_length < temp_hashlen)
+                      {
+                        if (sk_rover->pk->pubkey_algo == PUBKEY_ALGO_ECDSA)
+                          {
+                            if (hint.exact)
+                              conflict = 1;
+                            hint.exact = 1;
+                          }
+                        hint.digest_length = temp_hashlen;
+                      }
 		  }
-                /* FIXME: need to check gpg-agent for this. */
-		/* else if (sk_rover->pk->is_protected */
-                /*          && sk_rover->pk->protect.s2k.mode == 1002) */
-		/*   smartcard = 1;  */
 	      }
 
-	    /* Current smartcards only do 160-bit hashes.  If we have
-	       to have a >160-bit hash, then we can't use the
-	       recipient prefs as we'd need both =160 and >160 at the
-	       same time and recipient prefs currently require a
-	       single hash for all signatures.  All this may well have
-	       to change as the cards add algorithms. */
-
-	    if (!smartcard || (smartcard && hint.digest_length==20))
-	      if ( (algo=
-                   select_algo_from_prefs(pk_list,PREFTYPE_HASH,-1,&hint)) > 0)
-		recipient_digest_algo=algo;
+	    if (!conflict
+                && (algo = select_algo_from_prefs (pk_list,PREFTYPE_HASH,
+                                                   -1,&hint)) > 0)
+                {
+                  /* Note that we later check that the algo is not weak.  */
+                  recipient_digest_algo = algo;
+                }
 	  }
       }
 

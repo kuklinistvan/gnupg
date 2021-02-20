@@ -28,7 +28,11 @@ if !HAVE_W32CE_SYSTEM
 noinst_LIBRARIES += libsimple-pwquery.a
 endif
 noinst_PROGRAMS = $(module_tests) $(module_maint_tests)
+if DISABLE_TESTS
+TESTS =
+else
 TESTS = $(module_tests)
+endif
 
 BUILT_SOURCES = audit-events.h status-codes.h
 
@@ -184,7 +188,7 @@ t_common_cflags = $(KSBA_CFLAGS) $(LIBGCRYPT_CFLAGS) \
                   $(LIBASSUAN_CFLAGS) $(GPG_ERROR_CFLAGS) $(INCICONV)
 t_common_ldadd = libcommon.a \
                  $(LIBGCRYPT_LIBS) $(LIBASSUAN_LIBS) $(GPG_ERROR_LIBS) \
-	         $(LIBINTL) $(LIBICONV)
+	         $(LIBINTL) $(LIBICONV) $(NETLIBS)
 
 
 # Common tests

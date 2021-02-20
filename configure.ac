@@ -1,7 +1,7 @@
 # configure.ac - for GnuPG 2.2
 # Copyright (C) 1998-2019 Free Software Foundation, Inc.
 # Copyright (C) 1998-2019 Werner Koch
-# Copyright (C) 2003-2020 g10 Code GmbH
+# Copyright (C) 2003-2021 g10 Code GmbH
 #
 # This file is part of GnuPG.
 #
@@ -29,7 +29,7 @@ min_automake_version="1.14"
 m4_define([mym4_package],[gnupg])
 m4_define([mym4_major], [2])
 m4_define([mym4_minor], [2])
-m4_define([mym4_micro], [20])
+m4_define([mym4_micro], [27])
 
 # To start a new development series, i.e a new major or minor number
 # you need to mark an arbitrary commit before the first beta release
@@ -54,16 +54,16 @@ AC_INIT([mym4_package],[mym4_version], [https://bugs.gnupg.org])
 # build-aux/speedo.mk and Makefile.am
 AC_DEFINE_UNQUOTED(GNUPG_SWDB_TAG, "gnupg22", [swdb tag for this branch])
 
-NEED_GPG_ERROR_VERSION=1.24
+NEED_GPG_ERROR_VERSION=1.27
 
 NEED_LIBGCRYPT_API=1
-NEED_LIBGCRYPT_VERSION=1.7.0
+NEED_LIBGCRYPT_VERSION=1.8.0
 
 NEED_LIBASSUAN_API=2
 NEED_LIBASSUAN_VERSION=2.5.0
 
 NEED_KSBA_API=1
-NEED_KSBA_VERSION=1.3.4
+NEED_KSBA_VERSION=1.3.5
 
 NEED_NTBTLS_API=1
 NEED_NTBTLS_VERSION=0.1.0
@@ -125,7 +125,6 @@ GNUPG_BUILD_PROGRAM(scdaemon, yes)
 GNUPG_BUILD_PROGRAM(g13, no)
 GNUPG_BUILD_PROGRAM(dirmngr, yes)
 GNUPG_BUILD_PROGRAM(doc, yes)
-GNUPG_BUILD_PROGRAM(symcryptrun, no)
 # We use gpgtar to unpack test data, hence we always build it.  If the
 # user opts out, we simply don't install it.
 GNUPG_BUILD_PROGRAM(gpgtar, yes)
@@ -511,6 +510,22 @@ AH_BOTTOM([
 #define GNUPG_PRIVATE_KEYS_DIR  "private-keys-v1.d"
 #define GNUPG_OPENPGP_REVOC_DIR "openpgp-revocs.d"
 
+/* GnuPG has always been a part of the GNU project and thus we have
+ * shown the FSF as holder of the copyright.  We continue to do so for
+ * the reason that without the FSF the free software used all over the
+ * world would not have come into existence.  However, under Windows
+ * we print a different copyright string with --version because the
+ * copyright assignments of g10 Code and Werner Koch were terminated
+ * many years ago, g10 Code is still the major contributor to the
+ * code, and Windows is not an FSF endorsed platform.  Note that the
+ * actual list of copyright holders can be found in the AUTHORS file.  */
+#ifdef HAVE_W32_SYSTEM
+#define GNUPG_DEF_COPYRIGHT_LINE "Copyright (C) 2021 g10 Code GmbH"
+#else
+#define GNUPG_DEF_COPYRIGHT_LINE "Copyright (C) 2021 Free Software Foundation, Inc."
+#endif
+
+
 /* For some systems (DOS currently), we hardcode the path here.  For
    POSIX systems the values are constructed by the Makefiles, so that
    the values may be overridden by the make invocations; this is to
@@ -563,6 +578,9 @@ AH_BOTTOM([
 
 /* Provide the es_ macro for estream.  */
 #define GPGRT_ENABLE_ES_MACROS 1
+
+/* We want the argparse macros from gpgrt.  */
+#define GPGRT_ENABLE_ARGPARSE_MACROS 1
 
 /* Tell libgcrypt not to use its own libgpg-error implementation. */
 #define USE_LIBGPG_ERROR 1
@@ -622,6 +640,16 @@ AC_ISC_POSIX
 AC_SYS_LARGEFILE
 GNUPG_CHECK_USTAR
 
+
+# GNU AWK requires -n option to interpret "0xHH" as a number
+if $AWK 'BEGIN { if (PROCINFO@<:@"version"@:>@) exit 1 }'; then
+  AWK_HEX_NUMBER_OPTION=''
+  AC_MSG_NOTICE([awk with no option for hexadecimal])
+else
+  AWK_HEX_NUMBER_OPTION='-n'
+  AC_MSG_NOTICE([awk with an option -n for hexadecimal])
+fi
+AC_SUBST(AWK_HEX_NUMBER_OPTION)
 
 # We need to compile and run a program on the build machine.  A
 # comment in libgpg-error says that the AC_PROG_CC_FOR_BUILD macro in
@@ -947,7 +975,7 @@ AC_DEFINE_UNQUOTED(FUSERMOUNT,
 
 
 #
-# Checks for symcryptrun:
+# Checks formerly used for symcryptrun.
 #
 
 # libutil has openpty() and login_tty().
@@ -1215,12 +1243,14 @@ AC_ARG_WITH(mailprog,
                      [use "NAME -t" for mail transport]),
              ,with_mailprog=yes)
 if test x"$with_mailprog" = xyes ; then
-    AC_PATH_PROG(SENDMAIL,sendmail,,$PATH:/usr/sbin:/usr/libexec:/usr/lib)
+    AC_PATH_PROG(SENDMAIL,sendmail,,"$PATH":/usr/sbin:/usr/libexec:/usr/lib)
 elif test x"$with_mailprog" != xno ; then
     AC_MSG_CHECKING([for a mail transport program])
     AC_SUBST(SENDMAIL,$with_mailprog)
     AC_MSG_RESULT($with_mailprog)
 fi
+AC_DEFINE_UNQUOTED(NAME_OF_SENDMAIL,"$SENDMAIL",
+                   [Tool with sendmail -t interface])
 
 
 #
@@ -1451,62 +1481,6 @@ AC_CHECK_FUNCS([getpeerucred])
 #
 GNUPG_FUNC_MKDIR_TAKES_ONE_ARG
 
-#
-# Sanity check regex.  Tests adapted from mutt.
-#
-AC_MSG_CHECKING([whether regular expression support is requested])
-AC_ARG_ENABLE(regex,
-  AC_HELP_STRING([--disable-regex],
-    [do not handle regular expressions in trust signatures]),
-  use_regex=$enableval, use_regex=yes)
-AC_MSG_RESULT($use_regex)
-
-if test "$use_regex" = yes ; then
-  _cppflags="${CPPFLAGS}"
-  _ldflags="${LDFLAGS}"
-  AC_ARG_WITH(regex,
-     AC_HELP_STRING([--with-regex=DIR],[look for regex in DIR]),
-      [
-      if test -d "$withval" ; then
-        CPPFLAGS="${CPPFLAGS} -I$withval/include"
-        LDFLAGS="${LDFLAGS} -L$withval/lib"
-      fi
-      ],withval="")
-
-  # Does the system have regex functions at all?
-  AC_SEARCH_LIBS([regcomp], [regex])
-  AC_CHECK_FUNC(regcomp, gnupg_cv_have_regex=yes, gnupg_cv_have_regex=no)
-
-  if test $gnupg_cv_have_regex = no; then
-    use_regex=no
-  else
-    if test x"$cross_compiling" = xyes; then
-      AC_MSG_WARN([cross compiling; assuming regexp libray is not broken])
-    else
-      AC_CACHE_CHECK([whether your system's regexp library is broken],
-       [gnupg_cv_regex_broken],
-       AC_TRY_RUN([
-#include <unistd.h>
-#include <regex.h>
-main() { regex_t blah ; regmatch_t p; p.rm_eo = p.rm_eo; return regcomp(&blah, "foo.*bar", REG_NOSUB) || regexec (&blah, "foobar", 0, NULL, 0); }],
-       gnupg_cv_regex_broken=no, gnupg_cv_regex_broken=yes, gnupg_cv_regex_broken=yes))
-
-      if test $gnupg_cv_regex_broken = yes; then
-        AC_MSG_WARN([your regex is broken - disabling regex use])
-        use_regex=no
-      fi
-    fi
-  fi
-  CPPFLAGS="${_cppflags}"
-  LDFLAGS="${_ldflags}"
-fi
-
-if test "$use_regex" != yes ; then
-  AC_DEFINE(DISABLE_REGEX,1, [Define to disable regular expression support])
-fi
-AM_CONDITIONAL(DISABLE_REGEX, test x"$use_regex" != xyes)
-
-
 
 #
 # Do we have zlib? Must do it here because Solaris failed
@@ -1654,8 +1628,9 @@ if test "$GCC" = yes; then
           AC_MSG_RESULT($_gcc_wopt)
         fi
         if test x"$_gcc_wopt" = xyes ; then
-          mycflags="$mycflags -W -Wno-sign-compare"
+          mycflags="$mycflags -W -Wno-sign-compare -Wno-format-zero-length"
           mycflags="$mycflags -Wno-missing-field-initializers"
+          mycflags="$mycflags -Wno-format-zero-length"
         fi
 
         AC_MSG_CHECKING([if gcc supports -Wdeclaration-after-statement])
@@ -1754,6 +1729,16 @@ if test "$run_all_tests" = "yes"; then
 fi
 
 #
+# Configure option --disable-tests
+#
+AC_MSG_CHECKING([whether tests should be run])
+AC_ARG_ENABLE(tests,
+              AC_HELP_STRING([--disable-tests],
+                             [do not run any tests]),
+              run_tests=$enableval, run_tests=yes)
+AC_MSG_RESULT($run_tests)
+
+#
 # We do not want support for the GNUPG_BUILDDIR environment variable
 # in a released version.  However, our regression tests suite requires
 # this and thus we build with support for it during "make distcheck".
@@ -1809,10 +1794,10 @@ AM_CONDITIONAL(BUILD_SCDAEMON,    test "$build_scdaemon" = "yes")
 AM_CONDITIONAL(BUILD_G13,         test "$build_g13" = "yes")
 AM_CONDITIONAL(BUILD_DIRMNGR,     test "$build_dirmngr" = "yes")
 AM_CONDITIONAL(BUILD_DOC,         test "$build_doc" = "yes")
-AM_CONDITIONAL(BUILD_SYMCRYPTRUN, test "$build_symcryptrun" = "yes")
 AM_CONDITIONAL(BUILD_GPGTAR,      test "$build_gpgtar" = "yes")
 AM_CONDITIONAL(BUILD_WKS_TOOLS,   test "$build_wks_tools" = "yes")
 
+AM_CONDITIONAL(DISABLE_TESTS,       test "$run_tests" != yes)
 AM_CONDITIONAL(ENABLE_CARD_SUPPORT, test "$card_support" = yes)
 AM_CONDITIONAL(NO_TRUST_MODELS,     test "$use_trust_models" = no)
 AM_CONDITIONAL(USE_TOFU,            test "$use_tofu" = yes)
@@ -2044,7 +2029,13 @@ AC_SUBST(COMMON_SUBDIR)
 AC_CONFIG_FILES([ m4/Makefile
 Makefile
 po/Makefile.in
+<<<<<<< HEAD
 $COMMON_CONFIG_FILES
+=======
+common/Makefile
+common/w32info-rc.h
+regexp/Makefile
+>>>>>>> gnupg-2.2.27
 kbx/Makefile
 g10/Makefile
 sm/Makefile
@@ -2062,7 +2053,17 @@ tests/migrations/Makefile
 tests/gpgsm/Makefile
 tests/gpgme/Makefile
 tests/pkits/Makefile
+agent/gpg-agent.w32-manifest
 g10/gpg.w32-manifest
+g10/gpgv.w32-manifest
+sm/gpgsm.w32-manifest
+scd/scdaemon.w32-manifest
+dirmngr/dirmngr.w32-manifest
+tools/gpgconf.w32-manifest
+tools/gpgtar.w32-manifest
+tools/gpg-connect-agent.w32-manifest
+tools/gpg-check-pattern.w32-manifest
+tools/gpg-wks-client.w32-manifest
 ])
 
 
@@ -2099,19 +2100,27 @@ echo "
         TOFU support:        $use_tofu
         Tor support:         $show_tor_support
 "
-if test x"$use_regex" != xyes ; then
-echo "
-        Warning: No regular expression support available.
-                 OpenPGP trust signatures won't work.
-                 gpg-check-pattern will not be built.
-"
-fi
 if test "x${gpg_config_script_warn}" != x; then
 cat <<G10EOF
         Warning: Mismatches between the target platform and the
                  to be used libraries have been detected for:
                   ${gpg_config_script_warn}
                  Please check above for more warning messages.
+
+G10EOF
+fi
+if test "${build_gpg}" != "yes"; then
+cat <<G10EOF
+        Warning: The component "gpg" is used by other components as
+                 well as for the test suite.  You have disabled
+                 this component and thus other things won't work.
+
+G10EOF
+fi
+if test "${run_tests}" != "yes"; then
+cat <<G10EOF
+        Warning: The use of the test suite has been disabled!
+                 This is in almost all cases a bad idea.  Take care.
 
 G10EOF
 fi

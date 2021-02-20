@@ -125,6 +125,9 @@ msgstr "stämmer inte överens - försök igen"
 #. the pinentry.  The %s is the actual error message, the
 #. two %d give the current and maximum number of tries.
 #. Do not translate the "SETERROR" keyword.
+#. TRANSLATORS: The string is appended to an error message in
+#. the pinentry.  The %s is the actual error message, the
+#. two %d give the current and maximum number of tries.
 #, c-format
 msgid "SETERROR %s (try %d of %d)"
 msgstr "SETERROR %s (försök %d av %d)"
@@ -480,16 +483,6 @@ msgstr "ogiltig debug-level \"%s\" angiven\n"
 #, c-format
 msgid "selected digest algorithm is invalid\n"
 msgstr "vald sammandragsalgoritm är ogiltig\n"
-
-#, fuzzy, c-format
-#| msgid "NOTE: no default option file `%s'\n"
-msgid "Note: no default option file '%s'\n"
-msgstr "OBS: inställningsfilen \"%s\" saknas\n"
-
-#, fuzzy, c-format
-#| msgid "option file `%s': %s\n"
-msgid "option file '%s': %s\n"
-msgstr "inställningsfil \"%s\": %s\n"
 
 #, fuzzy, c-format
 #| msgid "reading options from `%s'\n"
@@ -1143,8 +1136,26 @@ msgstr "ogiltigt kommando"
 msgid "invalid alias definition"
 msgstr "ogiltig aliasdefinition"
 
+msgid "permission error"
+msgstr ""
+
 msgid "out of core"
 msgstr "slut på minne"
+
+#, fuzzy
+#| msgid "invalid command"
+msgid "invalid meta command"
+msgstr "ogiltigt kommando"
+
+#, fuzzy
+#| msgid "unknown command `%s'\n"
+msgid "unknown meta command"
+msgstr "okänt kommando \"%s\"\n"
+
+#, fuzzy
+#| msgid "unexpected armor: "
+msgid "unexpected meta command"
+msgstr "oväntat skal: "
 
 msgid "invalid option"
 msgstr "ogiltig flagga"
@@ -1175,12 +1186,22 @@ msgid "command \"%.50s\" is ambiguous\n"
 msgstr "kommandot \"%.50s\" är tvetydigt\n"
 
 #, c-format
-msgid "out of core\n"
-msgstr "slut på minne\n"
-
-#, c-format
 msgid "invalid option \"%.50s\"\n"
 msgstr "ogiltig flagga \"%.50s\"\n"
+
+#, fuzzy, c-format
+#| msgid "NOTE: no default option file `%s'\n"
+msgid "Note: no default option file '%s'\n"
+msgstr "OBS: inställningsfilen \"%s\" saknas\n"
+
+#, fuzzy, c-format
+#| msgid "option file `%s': %s\n"
+msgid "option file '%s': %s\n"
+msgstr "inställningsfil \"%s\": %s\n"
+
+#, c-format
+msgid "Note: ignoring option \"--%s\" due to global config\n"
+msgstr ""
 
 #, fuzzy, c-format
 #| msgid "conversion from `%s' to `%s' not available\n"
@@ -1875,6 +1896,17 @@ msgid "WARNING: '%s' is an empty file\n"
 msgstr "VARNING: \"%s\" är en tom fil\n"
 
 #, fuzzy, c-format
+#| msgid "you may not use cipher algorithm `%s' while in %s mode\n"
+msgid "cipher algorithm '%s' may not be used in %s mode\n"
+msgstr "du får inte använda chifferalgoritmen \"%s\" när du är i %s-läget\n"
+
+#, fuzzy, c-format
+#| msgid "you may not use digest algorithm `%s' while in %s mode\n"
+msgid "digest algorithm '%s' may not be used in %s mode\n"
+msgstr ""
+"du får inte använda sammandragsalgoritmen \"%s\" när du är i %s-läget\n"
+
+#, fuzzy, c-format
 #| msgid "reading from `%s'\n"
 msgid "reading from '%s'\n"
 msgstr "läser från \"%s\"\n"
@@ -1885,11 +1917,6 @@ msgid ""
 msgstr ""
 "VARNING: tvinga symmetriskt chiffer med %s (%d) strider mot "
 "mottagarinställningarna\n"
-
-#, fuzzy, c-format
-#| msgid "you may not use cipher algorithm `%s' while in %s mode\n"
-msgid "cipher algorithm '%s' may not be used in %s mode\n"
-msgstr "du får inte använda chifferalgoritmen \"%s\" när du är i %s-läget\n"
 
 #, fuzzy, c-format
 #| msgid "WARNING: \"%s\" is an obsolete option - it has no effect\n"
@@ -2177,6 +2204,11 @@ msgstr "signera en nyckel"
 #| msgid "sign a key locally"
 msgid "quickly sign a key locally"
 msgstr "signera en nyckel lokalt"
+
+#, fuzzy
+#| msgid "generate a new key pair"
+msgid "quickly revoke a key signature"
+msgstr "generera ett nytt nyckelpar"
 
 msgid "sign a key"
 msgstr "signera en nyckel"
@@ -2475,11 +2507,6 @@ msgid "(use \"help\" to list choices)\n"
 msgstr ""
 
 #, fuzzy, c-format
-#| msgid "NOTE: old default options file `%s' ignored\n"
-msgid "Note: old default options file '%s' ignored\n"
-msgstr "OBS: den gamla inställningsfilen \"%s\" används inte\n"
-
-#, fuzzy, c-format
 #| msgid "NOTE: %s is not for normal use!\n"
 msgid "Note: %s is not for normal use!\n"
 msgstr "OBS: %s är inte för normal användning!\n"
@@ -2696,12 +2723,6 @@ msgstr "ogiltig inställning av föredragna kompressionsalgoritmer\n"
 #, c-format
 msgid "%s does not yet work with %s\n"
 msgstr "%s fungerar ännu inte med  %s\n"
-
-#, fuzzy, c-format
-#| msgid "you may not use digest algorithm `%s' while in %s mode\n"
-msgid "digest algorithm '%s' may not be used in %s mode\n"
-msgstr ""
-"du får inte använda sammandragsalgoritmen \"%s\" när du är i %s-läget\n"
 
 #, fuzzy, c-format
 #| msgid "you may not use compression algorithm `%s' while in %s mode\n"
@@ -3277,6 +3298,66 @@ msgid "key %s: direct key signature added\n"
 msgstr "nyckel %s: lade till direkt nyckelsignatur\n"
 
 #, fuzzy, c-format
+#| msgid "error allocating enough memory: %s\n"
+msgid "error allocating memory: %s\n"
+msgstr "fel vid allokering av tillräckligt mycket minne: %s\n"
+
+#, fuzzy, c-format
+#| msgid "key %s: unsupported public key algorithm\n"
+msgid "can't check signature with unsupported public-key algorithm (%d): %s.\n"
+msgstr "nyckel %s: algoritmen för publika nycklar stöds inte\n"
+
+#, fuzzy, c-format
+#| msgid "card does not support digest algorithm %s\n"
+msgid ""
+"can't check signature with unsupported message-digest algorithm %d: %s.\n"
+msgstr "kortet har inte stöd för sammandragsalgoritmen %s\n"
+
+#, fuzzy
+#| msgid "Good signature from"
+msgid " (reordered signatures follow)"
+msgstr "Korrekt signatur från"
+
+#, fuzzy, c-format
+#| msgid "skipped \"%s\": %s\n"
+msgid "key %s:\n"
+msgstr "hoppade över \"%s\": %s\n"
+
+#, fuzzy, c-format
+#| msgid "User ID \"%s\": %d signature removed\n"
+msgid "%d duplicate signature removed\n"
+msgid_plural "%d duplicate signatures removed\n"
+msgstr[0] "Användaridentitet \"%s\": %d signaturer borttagna\n"
+msgstr[1] "Användaridentitet \"%s\": %d signaturer borttagna\n"
+
+#, fuzzy, c-format
+#| msgid "1 signature not checked due to a missing key\n"
+msgid "%d signature not checked due to a missing key\n"
+msgid_plural "%d signatures not checked due to missing keys\n"
+msgstr[0] "1 signatur validerades inte eftersom nyckeln saknades\n"
+msgstr[1] "1 signatur validerades inte eftersom nyckeln saknades\n"
+
+#, fuzzy, c-format
+#| msgid "%d bad signatures\n"
+msgid "%d bad signature\n"
+msgid_plural "%d bad signatures\n"
+msgstr[0] "%d felaktiga signaturer\n"
+msgstr[1] "%d felaktiga signaturer\n"
+
+#, fuzzy, c-format
+#| msgid "Good signature from"
+msgid "%d signature reordered\n"
+msgid_plural "%d signatures reordered\n"
+msgstr[0] "Korrekt signatur från"
+msgstr[1] "Korrekt signatur från"
+
+#, c-format
+msgid ""
+"Warning: errors found and only checked self-signatures, run '%s' to check "
+"all signatures.\n"
+msgstr ""
+
+#, fuzzy, c-format
 #| msgid "error creating keybox `%s': %s\n"
 msgid "error creating keybox '%s': %s\n"
 msgstr "fel när nyckelskåpet \"%s\" skapades: %s\n"
@@ -3818,6 +3899,15 @@ msgstr "Ingen sådan användaridentitet.\n"
 msgid "Nothing to sign.\n"
 msgstr "Det finns inget att signera med nyckeln %s\n"
 
+#, c-format
+msgid "Not signed by you.\n"
+msgstr "Inte signerad av dig.\n"
+
+#, fuzzy, c-format
+#| msgid "checking created signature failed: %s\n"
+msgid "revoking the key signature failed: %s\n"
+msgstr "kontroll av den skapade signaturen misslyckades: %s\n"
+
 #, fuzzy, c-format
 #| msgid "`%s' is not a valid signature expiration\n"
 msgid "'%s' is not a valid expiration time\n"
@@ -3832,6 +3922,9 @@ msgstr "ogiltigt fingeravtryck"
 #| msgid "key \"%s\" not found: %s\n"
 msgid "subkey \"%s\" not found\n"
 msgstr "nyckeln \"%s\" hittades inte: %s\n"
+
+msgid "AEAD: "
+msgstr ""
 
 msgid "Digest: "
 msgstr "Sammandrag: "
@@ -4128,9 +4221,6 @@ msgstr "Är du säker på att du fortfarande vill spärra den? (j/N)"
 
 msgid "Create a revocation certificate for this signature? (y/N) "
 msgstr "Vill du skapa ett spärrcertifikat för denna signatur? (j/N)"
-
-msgid "Not signed by you.\n"
-msgstr "Inte signerad av dig.\n"
 
 #, c-format
 msgid "You have signed these user IDs on key %s:\n"
@@ -4710,20 +4800,6 @@ msgid "%d good signature\n"
 msgid_plural "%d good signatures\n"
 msgstr[0] "%d felaktiga signaturer\n"
 msgstr[1] "%d felaktiga signaturer\n"
-
-#, fuzzy, c-format
-#| msgid "%d bad signatures\n"
-msgid "%d bad signature\n"
-msgid_plural "%d bad signatures\n"
-msgstr[0] "%d felaktiga signaturer\n"
-msgstr[1] "%d felaktiga signaturer\n"
-
-#, fuzzy, c-format
-#| msgid "1 signature not checked due to a missing key\n"
-msgid "%d signature not checked due to a missing key\n"
-msgid_plural "%d signatures not checked due to missing keys\n"
-msgstr[0] "1 signatur validerades inte eftersom nyckeln saknades\n"
-msgstr[1] "1 signatur validerades inte eftersom nyckeln saknades\n"
 
 #, fuzzy, c-format
 #| msgid "1 signature not checked due to an error\n"
@@ -6678,6 +6754,25 @@ msgstr ""
 "Syntax: kbxutil [flaggor] [filer]\n"
 "lista, exportera, importera nyckelskåpsdata\n"
 
+#. TRANSLATORS: Put a \x1f right before a colon.  This can be
+#. * used by pinentry to nicely align the names and values.  Keep
+#. * the %s at the start and end of the string.
+#, c-format
+msgid "%sNumber: %s%%0AHolder: %s%s"
+msgstr ""
+
+#. TRANSLATORS: This is the number of remaining attempts to
+#. * enter a PIN.  Use %%0A (double-percent,0A) for a linefeed.
+#, c-format
+msgid "Remaining attempts: %d"
+msgstr ""
+
+msgid "||Please enter the PIN for the key to create qualified signatures."
+msgstr "||Ange PIN-koden för nyckeln att skapa kvalificerade signaturer med."
+
+msgid "||Please enter the PIN for the standard keys."
+msgstr "||Ange PIN-koden för standardnycklarna."
+
 #, c-format
 msgid "RSA modulus missing or not of size %d bits\n"
 msgstr "RSA modulus saknas eller är inte %d bitar stor\n"
@@ -6697,9 +6792,6 @@ msgstr "NullPIN har ännu inte ändrats\n"
 msgid "|N|Please enter a new PIN for the standard keys."
 msgstr "|N|Ange en ny PIN-kod för standardnycklarna."
 
-msgid "||Please enter the PIN for the standard keys."
-msgstr "||Ange PIN-koden för standardnycklarna."
-
 msgid "|NP|Please enter a new PIN Unblocking Code (PUK) for the standard keys."
 msgstr "|NP|Ange en ny upplåsningskod (PUK-kod) för standardnycklarna."
 
@@ -6709,9 +6801,6 @@ msgstr "|P|Ange upplåsningskoden (PUK-kod) för standardnycklarna."
 msgid "|N|Please enter a new PIN for the key to create qualified signatures."
 msgstr ""
 "|N|Ange en ny PIN-kod för nyckeln att skapa kvalificerade signaturer med."
-
-msgid "||Please enter the PIN for the key to create qualified signatures."
-msgstr "||Ange PIN-koden för nyckeln att skapa kvalificerade signaturer med."
 
 msgid ""
 "|NP|Please enter a new PIN Unblocking Code (PUK) for the key to create "
@@ -6769,16 +6858,6 @@ msgstr "läsning av publik nyckel misslyckades: %s\n"
 #. * the %s at the start and end of the string.
 #, c-format
 msgid "%sNumber: %s%%0AHolder: %s%%0ACounter: %lu%s"
-msgstr ""
-
-#, c-format
-msgid "%sNumber: %s%%0AHolder: %s%s"
-msgstr ""
-
-#. TRANSLATORS: This is the number of remaining attempts to
-#. * enter a PIN.  Use %%0A (double-percent,0A) for a linefeed.
-#, c-format
-msgid "Remaining attempts: %d"
 msgstr ""
 
 #, c-format
@@ -7054,12 +7133,21 @@ msgid "certificate policy not allowed"
 msgstr "certifikatpolicy tillåts inte"
 
 #, c-format
+msgid "failed to get the fingerprint\n"
+msgstr "misslyckades med att få fingeravtrycket\n"
+
+#, c-format
 msgid "looking up issuer at external location\n"
 msgstr "slår upp utfärdare på extern plats\n"
 
 #, c-format
 msgid "number of issuers matching: %d\n"
 msgstr "antal utfärdare som matchar: %d\n"
+
+#, fuzzy, c-format
+#| msgid "can't access `%s': %s\n"
+msgid "can't get authorityInfoAccess: %s\n"
+msgstr "kan inte komma åt \"%s\": %s\n"
 
 #, c-format
 msgid "looking up issuer from the Dirmngr cache\n"
@@ -7222,6 +7310,10 @@ msgstr "valideringsmodell använd: %s"
 #, c-format
 msgid "a %u bit hash is not valid for a %u bit %s key\n"
 msgstr "en %u-bitars hash är inte giltig för en %u-bitars %s-nyckel\n"
+
+#, c-format
+msgid "out of core\n"
+msgstr "slut på minne\n"
 
 #, c-format
 msgid "(this is the MD2 algorithm)\n"
@@ -7687,10 +7779,6 @@ msgid "error reading input: %s\n"
 msgstr "fel vid läsning av indata: %s\n"
 
 #, c-format
-msgid "failed to get the fingerprint\n"
-msgstr "misslyckades med att få fingeravtrycket\n"
-
-#, c-format
 msgid "problem looking for existing certificate: %s\n"
 msgstr "problem vid sökandet efter befintligt certifikat: %s\n"
 
@@ -7783,9 +7871,10 @@ msgstr "Signatur gjord "
 msgid "[date not given]"
 msgstr "[datum inte angivet]"
 
-#, c-format
-msgid " using certificate ID 0x%08lX\n"
-msgstr " använder certifikat-id 0x%08lX\n"
+#, fuzzy, c-format
+#| msgid "algorithm: %s"
+msgid "algorithm:"
+msgstr "algoritm: %s"
 
 #, c-format
 msgid ""
@@ -8157,15 +8246,6 @@ msgstr ""
 msgid "error getting data from cache file: %s\n"
 msgstr "fel vid hämtning av lagrade flaggor: %s\n"
 
-#, fuzzy, c-format
-#| msgid "invalid hash algorithm `%s'\n"
-msgid "unknown hash algorithm '%s'\n"
-msgstr "ogiltig kontrollsummealgoritm \"%s\"\n"
-
-#, c-format
-msgid "gcry_md_open for algorithm %d failed: %s\n"
-msgstr ""
-
 #, c-format
 msgid "got an invalid S-expression from libksba\n"
 msgstr ""
@@ -8174,6 +8254,15 @@ msgstr ""
 #| msgid "iconv_open failed: %s\n"
 msgid "converting S-expression failed: %s\n"
 msgstr "iconv_open misslyckades: %s\n"
+
+#, fuzzy, c-format
+#| msgid "invalid hash algorithm `%s'\n"
+msgid "unknown hash algorithm '%s'\n"
+msgstr "ogiltig kontrollsummealgoritm \"%s\"\n"
+
+#, c-format
+msgid "gcry_md_open for algorithm %d failed: %s\n"
+msgstr ""
 
 #, fuzzy, c-format
 #| msgid "receiving line failed: %s\n"
@@ -8886,11 +8975,6 @@ msgid "redirection changed to '%s'\n"
 msgstr "skriver till \"%s\"\n"
 
 #, fuzzy, c-format
-#| msgid "error allocating enough memory: %s\n"
-msgid "error allocating memory: %s\n"
-msgstr "fel vid allokering av tillräckligt mycket minne: %s\n"
-
-#, fuzzy, c-format
 #| msgid "error writing to %s: %s\n"
 msgid "error printing log line: %s\n"
 msgstr "fel vid skrivning till %s: %s\n"
@@ -9057,11 +9141,6 @@ msgstr "fel vid lagring av certifikat\n"
 #| msgid "failed to allocate keyDB handle\n"
 msgid "failed to allocate OCSP context: %s\n"
 msgstr "misslyckades med att allokera keyDB-hanterare\n"
-
-#, fuzzy, c-format
-#| msgid "can't access `%s': %s\n"
-msgid "can't get authorityInfoAccess: %s\n"
-msgstr "kan inte komma åt \"%s\": %s\n"
 
 #, c-format
 msgid "no default OCSP responder defined\n"
@@ -9552,148 +9631,6 @@ msgstr "Komponenten hittades inte"
 msgid "No argument allowed"
 msgstr "Inget argument tillåts"
 
-msgid ""
-"@\n"
-"Commands:\n"
-" "
-msgstr ""
-"@\n"
-"Kommandon:\n"
-" "
-
-msgid "decryption modus"
-msgstr "dekrypteringsmodus"
-
-msgid "encryption modus"
-msgstr "krypteringsmodus"
-
-msgid "tool class (confucius)"
-msgstr "verktygsklass (confucius)"
-
-msgid "program filename"
-msgstr "programfilnamn"
-
-msgid "secret key file (required)"
-msgstr "hemlig nyckelfil (krävs)"
-
-msgid "input file name (default stdin)"
-msgstr "filnamn för inmatning (standardvärde är standard in)"
-
-msgid "Usage: symcryptrun [options] (-h for help)"
-msgstr "Användning: symcryptrun [flaggor] (-h för hjälp)"
-
-msgid ""
-"Syntax: symcryptrun --class CLASS --program PROGRAM --keyfile KEYFILE "
-"[options...] COMMAND [inputfile]\n"
-"Call a simple symmetric encryption tool\n"
-msgstr ""
-"Syntax: symcryptrun --class KLASS --program PROGRAM --keyfile NYCKELFIL "
-"[flaggor...] KOMMANDO [inmatningsfil]\n"
-"Anropa ett enkelt symmetriskt krypteringsverktyg\n"
-
-#, c-format
-msgid "%s on %s aborted with status %i\n"
-msgstr "%s på %s avbröts med status %i\n"
-
-#, c-format
-msgid "%s on %s failed with status %i\n"
-msgstr "%s på %s misslyckades med status %i\n"
-
-#, fuzzy, c-format
-#| msgid "can't create temporary directory `%s': %s\n"
-msgid "can't create temporary directory '%s': %s\n"
-msgstr "kan inte skapa temporärkatalogen \"%s\": %s\n"
-
-#, c-format
-msgid "could not open %s for writing: %s\n"
-msgstr "kunde inte öppna %s för skrivning: %s\n"
-
-#, c-format
-msgid "error writing to %s: %s\n"
-msgstr "fel vid skrivning till %s: %s\n"
-
-#, c-format
-msgid "error reading from %s: %s\n"
-msgstr "fel vid läsning från %s: %s\n"
-
-#, c-format
-msgid "error closing %s: %s\n"
-msgstr "fel vid stängning av %s: %s\n"
-
-#, c-format
-msgid "no --program option provided\n"
-msgstr "flaggan --program angavs inte\n"
-
-#, c-format
-msgid "only --decrypt and --encrypt are supported\n"
-msgstr "endast --decrypt och --encrypt stöds\n"
-
-#, c-format
-msgid "no --keyfile option provided\n"
-msgstr "flaggan --keyfile angavs inte\n"
-
-#, c-format
-msgid "cannot allocate args vector\n"
-msgstr "kan inte allokera argumentvektor\n"
-
-#, c-format
-msgid "could not create pipe: %s\n"
-msgstr "kunde inte skapa rör: %s\n"
-
-#, c-format
-msgid "could not create pty: %s\n"
-msgstr "kunde inte skapa pty: %s\n"
-
-#, c-format
-msgid "could not fork: %s\n"
-msgstr "kunde inte grena process: %s\n"
-
-#, c-format
-msgid "execv failed: %s\n"
-msgstr "execv misslyckades: %s\n"
-
-#, c-format
-msgid "select failed: %s\n"
-msgstr "val misslyckades: %s\n"
-
-#, c-format
-msgid "read failed: %s\n"
-msgstr "läsning misslyckades: %s\n"
-
-#, c-format
-msgid "pty read failed: %s\n"
-msgstr "pty-läsning misslyckades: %s\n"
-
-#, c-format
-msgid "waitpid failed: %s\n"
-msgstr "waitpid misslyckades: %s\n"
-
-#, c-format
-msgid "child aborted with status %i\n"
-msgstr "barnprocess avbröts med status %i\n"
-
-#, c-format
-msgid "cannot allocate infile string: %s\n"
-msgstr "kan inte allokera infilssträng: %s\n"
-
-#, c-format
-msgid "cannot allocate outfile string: %s\n"
-msgstr "kan inte allokera utfilssträng: %s\n"
-
-#, c-format
-msgid "either %s or %s must be given\n"
-msgstr "antingen %s eller %s måste anges\n"
-
-#, c-format
-msgid "no class provided\n"
-msgstr "ingen klass tillhandahölls\n"
-
-# Skyddssammandraget låter underligt
-# Kontrollsumma?
-#, c-format
-msgid "class %s is not supported\n"
-msgstr "klassen %s stöds inte\n"
-
 msgid "Usage: gpg-check-pattern [options] patternfile (-h for help)\n"
 msgstr "Användning: gpg-check-pattern [flaggor] mönsterfil (-h för hjälp)\n"
 
@@ -9703,6 +9640,132 @@ msgid ""
 msgstr ""
 "Syntax: gpg-check-pattern [flaggor] mönsterfil\n"
 "Kontrollera en lösenfras angiven på standard in mot mönsterfilen\n"
+
+#, fuzzy
+#~| msgid "NOTE: old default options file `%s' ignored\n"
+#~ msgid "Note: old default options file '%s' ignored\n"
+#~ msgstr "OBS: den gamla inställningsfilen \"%s\" används inte\n"
+
+#~ msgid ""
+#~ "@\n"
+#~ "Commands:\n"
+#~ " "
+#~ msgstr ""
+#~ "@\n"
+#~ "Kommandon:\n"
+#~ " "
+
+#~ msgid "decryption modus"
+#~ msgstr "dekrypteringsmodus"
+
+#~ msgid "encryption modus"
+#~ msgstr "krypteringsmodus"
+
+#~ msgid "tool class (confucius)"
+#~ msgstr "verktygsklass (confucius)"
+
+#~ msgid "program filename"
+#~ msgstr "programfilnamn"
+
+#~ msgid "secret key file (required)"
+#~ msgstr "hemlig nyckelfil (krävs)"
+
+#~ msgid "input file name (default stdin)"
+#~ msgstr "filnamn för inmatning (standardvärde är standard in)"
+
+#~ msgid "Usage: symcryptrun [options] (-h for help)"
+#~ msgstr "Användning: symcryptrun [flaggor] (-h för hjälp)"
+
+#~ msgid ""
+#~ "Syntax: symcryptrun --class CLASS --program PROGRAM --keyfile KEYFILE "
+#~ "[options...] COMMAND [inputfile]\n"
+#~ "Call a simple symmetric encryption tool\n"
+#~ msgstr ""
+#~ "Syntax: symcryptrun --class KLASS --program PROGRAM --keyfile NYCKELFIL "
+#~ "[flaggor...] KOMMANDO [inmatningsfil]\n"
+#~ "Anropa ett enkelt symmetriskt krypteringsverktyg\n"
+
+#~ msgid "%s on %s aborted with status %i\n"
+#~ msgstr "%s på %s avbröts med status %i\n"
+
+#~ msgid "%s on %s failed with status %i\n"
+#~ msgstr "%s på %s misslyckades med status %i\n"
+
+#, fuzzy
+#~| msgid "can't create temporary directory `%s': %s\n"
+#~ msgid "can't create temporary directory '%s': %s\n"
+#~ msgstr "kan inte skapa temporärkatalogen \"%s\": %s\n"
+
+#~ msgid "could not open %s for writing: %s\n"
+#~ msgstr "kunde inte öppna %s för skrivning: %s\n"
+
+#~ msgid "error writing to %s: %s\n"
+#~ msgstr "fel vid skrivning till %s: %s\n"
+
+#~ msgid "error reading from %s: %s\n"
+#~ msgstr "fel vid läsning från %s: %s\n"
+
+#~ msgid "error closing %s: %s\n"
+#~ msgstr "fel vid stängning av %s: %s\n"
+
+#~ msgid "no --program option provided\n"
+#~ msgstr "flaggan --program angavs inte\n"
+
+#~ msgid "only --decrypt and --encrypt are supported\n"
+#~ msgstr "endast --decrypt och --encrypt stöds\n"
+
+#~ msgid "no --keyfile option provided\n"
+#~ msgstr "flaggan --keyfile angavs inte\n"
+
+#~ msgid "cannot allocate args vector\n"
+#~ msgstr "kan inte allokera argumentvektor\n"
+
+#~ msgid "could not create pipe: %s\n"
+#~ msgstr "kunde inte skapa rör: %s\n"
+
+#~ msgid "could not create pty: %s\n"
+#~ msgstr "kunde inte skapa pty: %s\n"
+
+#~ msgid "could not fork: %s\n"
+#~ msgstr "kunde inte grena process: %s\n"
+
+#~ msgid "execv failed: %s\n"
+#~ msgstr "execv misslyckades: %s\n"
+
+#~ msgid "select failed: %s\n"
+#~ msgstr "val misslyckades: %s\n"
+
+#~ msgid "read failed: %s\n"
+#~ msgstr "läsning misslyckades: %s\n"
+
+#~ msgid "pty read failed: %s\n"
+#~ msgstr "pty-läsning misslyckades: %s\n"
+
+#~ msgid "waitpid failed: %s\n"
+#~ msgstr "waitpid misslyckades: %s\n"
+
+#~ msgid "child aborted with status %i\n"
+#~ msgstr "barnprocess avbröts med status %i\n"
+
+#~ msgid "cannot allocate infile string: %s\n"
+#~ msgstr "kan inte allokera infilssträng: %s\n"
+
+#~ msgid "cannot allocate outfile string: %s\n"
+#~ msgstr "kan inte allokera utfilssträng: %s\n"
+
+#~ msgid "either %s or %s must be given\n"
+#~ msgstr "antingen %s eller %s måste anges\n"
+
+#~ msgid "no class provided\n"
+#~ msgstr "ingen klass tillhandahölls\n"
+
+# Skyddssammandraget låter underligt
+# Kontrollsumma?
+#~ msgid "class %s is not supported\n"
+#~ msgstr "klassen %s stöds inte\n"
+
+#~ msgid " using certificate ID 0x%08lX\n"
+#~ msgstr " använder certifikat-id 0x%08lX\n"
 
 #, fuzzy
 #~| msgid "you may not use %s while in %s mode\n"
@@ -9818,42 +9881,6 @@ msgstr ""
 
 #~ msgid "Error: Private DO too long (limit is %d characters).\n"
 #~ msgstr "Fel: Privat DO för långt (gränsen är %d tecken).\n"
-
-#, fuzzy
-#~| msgid "key %s: unsupported public key algorithm\n"
-#~ msgid ""
-#~ "can't check signature with unsupported public-key algorithm (%d): %s.\n"
-#~ msgstr "nyckel %s: algoritmen för publika nycklar stöds inte\n"
-
-#, fuzzy
-#~| msgid "card does not support digest algorithm %s\n"
-#~ msgid ""
-#~ "can't check signature with unsupported message-digest algorithm %d: %s.\n"
-#~ msgstr "kortet har inte stöd för sammandragsalgoritmen %s\n"
-
-#, fuzzy
-#~| msgid "Good signature from"
-#~ msgid " (reordered signatures follow)"
-#~ msgstr "Korrekt signatur från"
-
-#, fuzzy
-#~| msgid "skipped \"%s\": %s\n"
-#~ msgid "key %s:\n"
-#~ msgstr "hoppade över \"%s\": %s\n"
-
-#, fuzzy
-#~| msgid "User ID \"%s\": %d signature removed\n"
-#~ msgid "%d duplicate signature removed\n"
-#~ msgid_plural "%d duplicate signatures removed\n"
-#~ msgstr[0] "Användaridentitet \"%s\": %d signaturer borttagna\n"
-#~ msgstr[1] "Användaridentitet \"%s\": %d signaturer borttagna\n"
-
-#, fuzzy
-#~| msgid "Good signature from"
-#~ msgid "%d signature reordered\n"
-#~ msgid_plural "%d signatures reordered\n"
-#~ msgstr[0] "Korrekt signatur från"
-#~ msgstr[1] "Korrekt signatur från"
 
 #, fuzzy
 #~| msgid "new configuration file `%s' created\n"

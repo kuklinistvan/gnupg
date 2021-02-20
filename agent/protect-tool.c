@@ -15,6 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #include <config.h>
@@ -145,9 +146,11 @@ my_strusage (int level)
   const char *p;
   switch (level)
     {
+    case  9: p = "GPL-3.0-or-later"; break;
     case 11: p = "gpg-protect-tool (" GNUPG_NAME ")";
       break;
     case 13: p = VERSION; break;
+    case 14: p = GNUPG_DEF_COPYRIGHT_LINE; break;
     case 17: p = PRINTABLE_OS_NAME; break;
     case 19: p = _("Please report bugs to <@EMAIL@>.\n"); break;
 
@@ -275,7 +278,7 @@ read_file (const char *fname, size_t *r_length)
     {
       struct stat st;
 
-      fp = fopen (fname, "rb");
+      fp = gnupg_fopen (fname, "rb");
       if (!fp)
         {
           log_error ("can't open '%s': %s\n", fname, strerror (errno));
@@ -316,6 +319,11 @@ read_key (const char *fname)
   buf = read_file (fname, &buflen);
   if (!buf)
     return NULL;
+  if (buflen >= 4 && !memcmp (buf, "Key:", 4))
+    {
+      log_error ("Extended key format is not supported by this tool\n");
+      return NULL;
+    }
   key = make_canonical (fname, buf, buflen);
   xfree (buf);
   return key;
@@ -546,7 +554,6 @@ show_keygrip (const char *fname)
   putchar ('\n');
 }
 
-
 
 
 
@@ -572,8 +579,8 @@ main (int argc, char **argv )
 
   pargs.argc = &argc;
   pargs.argv = &argv;
-  pargs.flags=  1;  /* (do not remove the args) */
-  while (arg_parse (&pargs, opts) )
+  pargs.flags= ARGPARSE_FLAG_KEEP;
+  while (gnupg_argparse (NULL, &pargs, opts))
     {
       switch (pargs.r_opt)
         {
@@ -603,6 +610,8 @@ main (int argc, char **argv )
         default: pargs.err = ARGPARSE_PRINT_ERROR; break;
 	}
     }
+  gnupg_argparse (NULL, &pargs, NULL);  /* Release internal state.  */
+
   if (log_get_errorcount (0))
     exit (2);
 
@@ -800,12 +809,14 @@ agent_askpin (ctrl_t ctrl,
  * to stdout. */
 int
 agent_write_private_key (const unsigned char *grip,
-                         const void *buffer, size_t length, int force)
+                         const void *buffer, size_t length, int force,
+                         time_t timestamp)
 {
   char hexgrip[40+4+1];
   char *p;
 
   (void)force;
+  (void)timestamp;
 
   bin2hex (grip, 20, hexgrip);
   strcpy (hexgrip+40, ".key");

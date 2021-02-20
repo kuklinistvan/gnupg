@@ -196,7 +196,7 @@ gpgsm_get_keygrip (ksba_cert_t cert, unsigned char *array)
       return NULL;
     }
   if (DBG_X509)
-    log_printhex ("keygrip=", array, 20);
+    log_printhex (array, 20, "keygrip=");
 
   return array;
 }
@@ -276,6 +276,41 @@ gpgsm_get_key_algo_info (ksba_cert_t cert, unsigned int *nbits)
   return gcry_pk_map_name (namebuf);
 }
 
+
+/* This is a wrapper around pubkey_algo_string which takes a KSBA
+ * certificate instead of a Gcrypt public key.  Note that this
+ * function may return NULL on error.  */
+char *
+gpgsm_pubkey_algo_string (ksba_cert_t cert, int *r_algoid)
+{
+  gpg_error_t err;
+  gcry_sexp_t s_pkey;
+  ksba_sexp_t p;
+  size_t n;
+  enum gcry_pk_algos algoid;
+  char *algostr;
+
+  p = ksba_cert_get_public_key (cert);
+  if (!p)
+    return NULL;
+  n = gcry_sexp_canon_len (p, 0, NULL, NULL);
+  if (!n)
+    {
+      xfree (p);
+      return NULL;
+    }
+  err = gcry_sexp_sscan (&s_pkey, NULL, (char *)p, n);
+  xfree (p);
+  if (err)
+    return NULL;
+
+  algostr = pubkey_algo_string (s_pkey, r_algoid? &algoid : NULL);
+  if (algostr && r_algoid)
+    *r_algoid = algoid;
+
+  gcry_sexp_release (s_pkey);
+  return algostr;
+}
 
 
 

@@ -17,7 +17,7 @@
 
 ## Process this file with automake to produce Makefile.in
 
-EXTRA_DIST = ChangeLog-2011 scdaemon-w32info.rc
+EXTRA_DIST = ChangeLog-2011 scdaemon-w32info.rc scdaemon.w32-manifest.in
 
 libexec_PROGRAMS = scdaemon
 
@@ -26,7 +26,7 @@ AM_CPPFLAGS = $(LIBUSB_CPPFLAGS) $(KC_EMULATOR_CPPFLAGS)
 include $(top_srcdir)/am/cmacros.am
 
 if HAVE_W32_SYSTEM
-resource_objs += scdaemon-w32info.o
+scdaemon_robjs = $(resource_objs) scdaemon-w32info.o
 endif
 
 AM_CFLAGS =  $(LIBGCRYPT_CFLAGS) \
@@ -48,5 +48,10 @@ scdaemon_SOURCES = \
 
 scdaemon_LDADD = $(libcommonpth) \
 	$(LIBGCRYPT_LIBS) $(KSBA_LIBS) $(LIBASSUAN_LIBS) $(NPTH_LIBS) \
+<<<<<<< HEAD
 	$(LIBUSB_LIBS) $(GPG_ERROR_LIBS) $(KC_EMULATOR_LIBS) \
         $(LIBINTL) $(DL_LIBS) $(NETLIBS) $(LIBICONV) $(resource_objs)
+=======
+	$(LIBUSB_LIBS) $(GPG_ERROR_LIBS) \
+        $(LIBINTL) $(DL_LIBS) $(NETLIBS) $(LIBICONV) $(scdaemon_robjs)
+>>>>>>> gnupg-2.2.27

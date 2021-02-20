@@ -16,6 +16,7 @@
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: LGPL-2.1-or-later
  */
 
 /* The Web Key Service I-D defines an update protocol to store a
@@ -172,9 +173,11 @@ my_strusage( int level )
 
   switch (level)
     {
+    case  9: p = "LGPL-2.1-or-later"; break;
     case 11: p = "gpg-wks-server"; break;
     case 12: p = "@GNUPG@"; break;
     case 13: p = VERSION; break;
+    case 14: p = GNUPG_DEF_COPYRIGHT_LINE; break;
     case 17: p = PRINTABLE_OS_NAME; break;
     case 19: p = ("Please report bugs to <@EMAIL@>.\n"); break;
 
@@ -209,7 +212,7 @@ parse_arguments (ARGPARSE_ARGS *pargs, ARGPARSE_OPTS *popts)
   enum cmd_and_opt_values cmd = 0;
   int no_more_options = 0;
 
-  while (!no_more_options && optfile_parse (NULL, NULL, NULL, pargs, popts))
+  while (!no_more_options && gnupg_argparse (NULL, pargs, popts))
     {
       switch (pargs->r_opt)
         {
@@ -258,7 +261,7 @@ parse_arguments (ARGPARSE_ARGS *pargs, ARGPARSE_OPTS *popts)
           cmd = pargs->r_opt;
           break;
 
-        default: pargs->err = 2; break;
+        default: pargs->err = ARGPARSE_PRINT_ERROR; break;
 	}
     }
 
@@ -287,6 +290,7 @@ main (int argc, char **argv)
   pargs.argv  = &argv;
   pargs.flags = ARGPARSE_FLAG_KEEP;
   cmd = parse_arguments (&pargs, opts);
+  gnupg_argparse (NULL, &pargs, NULL);  /* Release internal state.  */
 
   if (log_get_errorcount (0))
     exit (2);
@@ -332,7 +336,7 @@ main (int argc, char **argv)
   {
     struct stat sb;
 
-    if (stat (opt.directory, &sb))
+    if (gnupg_stat (opt.directory, &sb))
       {
         err = gpg_error_from_syserror ();
         log_error ("error accessing directory '%s': %s\n",
@@ -1177,7 +1181,7 @@ process_new_key (server_ctx_t ctx, estream_t key)
           goto leave;
         }
 
-      if (access (dname, W_OK))
+      if (gnupg_access (dname, W_OK))
         {
           log_info ("skipping address '%s': Domain not configured\n", sl->mbox);
           continue;
@@ -1454,7 +1458,7 @@ check_and_publish (server_ctx_t ctx, const char *address, const char *nonce)
       err = gpg_error_from_syserror ();
       goto leave;
     }
-  if (!access (fnewname, W_OK))
+  if (!gnupg_access (fnewname, W_OK))
     {
       /* Yes, we have a dane directory.  */
       s = strchr (address, '@');
@@ -1608,22 +1612,22 @@ static gpg_error_t
 get_domain_list (strlist_t *r_list)
 {
   gpg_error_t err;
-  DIR *dir = NULL;
+  gnupg_dir_t dir = NULL;
   char *fname = NULL;
-  struct dirent *dentry;
+  gnupg_dirent_t dentry;
   struct stat sb;
   strlist_t list = NULL;
 
   *r_list = NULL;
 
-  dir = opendir (opt.directory);
+  dir = gnupg_opendir (opt.directory);
   if (!dir)
     {
       err = gpg_error_from_syserror ();
       goto leave;
     }
 
-  while ((dentry = readdir (dir)))
+  while ((dentry = gnupg_readdir (dir)))
     {
       if (*dentry->d_name == '.')
         continue;
@@ -1640,7 +1644,7 @@ get_domain_list (strlist_t *r_list)
           goto leave;
         }
 
-      if (stat (fname, &sb))
+      if (gnupg_stat (fname, &sb))
         {
           err = gpg_error_from_syserror ();
           log_error ("error accessing '%s': %s\n", fname, gpg_strerror (err));
@@ -1663,8 +1667,7 @@ get_domain_list (strlist_t *r_list)
 
  leave:
   free_strlist (list);
-  if (dir)
-    closedir (dir);
+  gnupg_closedir (dir);
   xfree (fname);
   return err;
 }
@@ -1677,8 +1680,8 @@ expire_one_domain (const char *top_dirname, const char *domain)
   gpg_error_t err;
   char *dirname;
   char *fname = NULL;
-  DIR *dir = NULL;
-  struct dirent *dentry;
+  gnupg_dir_t dir = NULL;
+  gnupg_dirent_t dentry;
   struct stat sb;
   time_t now = gnupg_get_time ();
 
@@ -1691,7 +1694,7 @@ expire_one_domain (const char *top_dirname, const char *domain)
       goto leave;
     }
 
-  dir = opendir (dirname);
+  dir = gnupg_opendir (dirname);
   if (!dir)
     {
       err = gpg_error_from_syserror ();
@@ -1700,7 +1703,7 @@ expire_one_domain (const char *top_dirname, const char *domain)
       goto leave;
     }
 
-  while ((dentry = readdir (dir)))
+  while ((dentry = gnupg_readdir (dir)))
     {
       if (*dentry->d_name == '.')
         continue;
@@ -1718,7 +1721,7 @@ expire_one_domain (const char *top_dirname, const char *domain)
           log_info ("garbage file '%s' ignored\n", fname);
           continue;
         }
-      if (stat (fname, &sb))
+      if (gnupg_stat (fname, &sb))
         {
           err = gpg_error_from_syserror ();
           log_error ("error accessing '%s': %s\n", fname, gpg_strerror (err));
@@ -1749,8 +1752,7 @@ expire_one_domain (const char *top_dirname, const char *domain)
   err = 0;
 
  leave:
-  if (dir)
-    closedir (dir);
+  gnupg_closedir (dir);
   xfree (dirname);
   xfree (fname);
   return err;
@@ -1790,7 +1792,7 @@ command_list_domains (void)
     { "pending", "-rwx" },
     { "hu",      "-rwxr-xr-x" }
   };
-
+  gpg_err_code_t ec;
   gpg_error_t err;
   strlist_t domaindirs;
   strlist_t sl;
@@ -1827,9 +1829,9 @@ command_list_domains (void)
               err = gpg_error_from_syserror ();
               goto leave;
             }
-          if (access (fname, W_OK))
+          if ((ec = gnupg_access (fname, W_OK)))
             {
-              err = gpg_error_from_syserror ();
+              err = gpg_error (ec);
               if (gpg_err_code (err) == GPG_ERR_ENOENT)
                 {
                   if (gnupg_mkdir (fname, requireddirs[i].perm))
@@ -1857,9 +1859,9 @@ command_list_domains (void)
           err = gpg_error_from_syserror ();
           goto leave;
         }
-      if (access (fname, F_OK))
+      if ((ec = gnupg_access (fname, F_OK)))
         {
-          err = gpg_error_from_syserror ();
+          err = gpg_error (ec);
           if (gpg_err_code (err) == GPG_ERR_ENOENT)
             log_error ("domain %s: submission address not configured\n",
                        domain);
@@ -1936,6 +1938,7 @@ command_cron (void)
 static gpg_error_t
 command_check_key (const char *userid)
 {
+  gpg_err_code_t ec;
   gpg_error_t err;
   char *addrspec = NULL;
   char *fname = NULL;
@@ -1944,9 +1947,9 @@ command_check_key (const char *userid)
   if (err)
     goto leave;
 
-  if (access (fname, R_OK))
+  if ((ec = gnupg_access (fname, R_OK)))
     {
-      err = gpg_error_from_syserror ();
+      err = gpg_error (ec);
       if (opt_with_file)
         es_printf ("%s n %s\n", addrspec, fname);
       if (gpg_err_code (err) == GPG_ERR_ENOENT)

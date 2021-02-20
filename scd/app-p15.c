@@ -1,5 +1,6 @@
 /* app-p15.c - The pkcs#15 card application.
  *	Copyright (C) 2005 Free Software Foundation, Inc.
+ *	Copyright (C) 2020 g10 Code GmbH
  *
  * This file is part of GnuPG.
  *
@@ -15,6 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 /* Information pertaining to the BELPIC developer card samples:
@@ -39,6 +41,7 @@
 
 #include "iso7816.h"
 #include "app-common.h"
+#include "../common/i18n.h"
 #include "../common/tlv.h"
 #include "apdu.h" /* fixme: we should move the card detection to a
                      separate file */
@@ -49,9 +52,21 @@ typedef enum
     CARD_TYPE_UNKNOWN,
     CARD_TYPE_TCOS,
     CARD_TYPE_MICARDO,
+    CARD_TYPE_CARDOS_50,
     CARD_TYPE_BELPIC   /* Belgian eID card specs. */
   }
 card_type_t;
+
+/* The OS of card as specified by card_type_t is not always
+ * sufficient.  Thus we also distinguish the actual product build upon
+ * the given OS.  */
+typedef enum
+  {
+    CARD_PRODUCT_UNKNOWN,
+    CARD_PRODUCT_DTRUST    /* D-Trust GmbH (bundesdruckerei.de) */
+  }
+card_product_t;
+
 
 /* A list card types with ATRs noticed with these cards. */
 #define X(a) ((unsigned char const *)(a))
@@ -79,7 +94,8 @@ static struct
   { 26, X("\x3B\xFE\x94\x00\xFF\x80\xB1\xFA\x45\x1F\x03\x45\x73\x74\x45\x49"
           "\x44\x20\x76\x65\x72\x20\x31\x2E\x30\x43"),
     CARD_TYPE_MICARDO }, /* EstEID (Estonian Big Brother card) */
-
+  { 11, X("\x3b\xd2\x18\x00\x81\x31\xfe\x58\xc9\x01\x14"),
+    CARD_TYPE_CARDOS_50 }, /* CardOS 5.0 */
   { 0 }
 };
 #undef X
@@ -135,7 +151,12 @@ struct cdf_object_s
   /* Link to next item when used in a linked list. */
   struct cdf_object_s *next;
 
-  /* Length and allocated buffer with the Id of this object. */
+  /* Flags to indicate whether fields are valid.  */
+  unsigned int have_off:1;
+
+  /* Length and allocated buffer with the Id of this object.
+   * This field is used for X.509 in PKCS#11 to make it easier to
+   * match a private key with a certificate.  */
   size_t objidlen;
   unsigned char *objid;
 
@@ -144,8 +165,6 @@ struct cdf_object_s
   size_t imagelen;
   unsigned char *image;
 
-  /* Set to true if a length and offset is available. */
-  int have_off;
   /* The offset and length of the object.  They are only valid if
      HAVE_OFF is true and set to 0 if HAVE_OFF is false. */
   unsigned long off, len;
@@ -169,6 +188,37 @@ struct prkdf_object_s
   /* Link to next item when used in a linked list. */
   struct prkdf_object_s *next;
 
+  /* Flags to indicate whether fields are valid.  */
+  unsigned int keygrip_valid:1;
+  unsigned int key_reference_valid:1;
+  unsigned int have_off:1;
+
+  /* Flag indicating that the corresponding PIN has already been
+   * verified. */
+  unsigned int pin_verified:1;
+
+  /* The key's usage flags. */
+  keyusage_flags_t usageflags;
+
+  /* The keygrip of the key.  This is used as a cache.  */
+  char keygrip[2*KEYGRIP_LEN+1];
+
+  /* The Gcrypt algo identifier for the key.  It is valid if the
+   * keygrip is also valid.  */
+  int keyalgo;
+
+  /* The length of the key in bits (e.g. for RSA the length of the
+   * modulus).  It is valid if the keygrip is also valid.  */
+  unsigned int keynbits;
+
+  /* Malloced CN from the Subject-DN of the corresponding certificate
+   * or NULL if not known.  */
+  char *common_name;
+
+  /* Malloced SerialNumber from the Subject-DN of the corresponding
+   * certificate or NULL if not known.  */
+  char *serial_number;
+
   /* Length and allocated buffer with the Id of this object. */
   size_t objidlen;
   unsigned char *objid;
@@ -178,17 +228,11 @@ struct prkdf_object_s
   size_t authidlen;
   unsigned char *authid;
 
-  /* The key's usage flags. */
-  keyusage_flags_t usageflags;
-
   /* The keyReference and a flag telling whether it is valid. */
   unsigned long key_reference;
-  int key_reference_valid;
 
-  /* Set to true if a length and offset is available. */
-  int have_off;
   /* The offset and length of the object.  They are only valid if
-     HAVE_OFF is true and set to 0 if HAVE_OFF is false. */
+   * HAVE_OFF is true otherwise they are set to 0. */
   unsigned long off, len;
 
   /* The length of the path as given in the PrKDF and the path itself.
@@ -209,6 +253,9 @@ struct aodf_object_s
   /* Link to next item when used in a linked list. */
   struct aodf_object_s *next;
 
+  /* Flags to indicate whether fields are valid.  */
+  unsigned int have_off:1;
+
   /* Length and allocated buffer with the Id of this object. */
   size_t objidlen;
   unsigned char *objid;
@@ -217,6 +264,9 @@ struct aodf_object_s
      NULL if no authID is known. */
   size_t authidlen;
   unsigned char *authid;
+
+  /* The file ID of this AODF.  */
+  unsigned short fid;
 
   /* The PIN Flags. */
   struct
@@ -256,9 +306,6 @@ struct aodf_object_s
   char pad_char;
   int pad_char_valid;
 
-
-  /* Set to true if a length and offset is available. */
-  int have_off;
   /* The offset and length of the object.  They are only valid if
      HAVE_OFF is true and set to 0 if HAVE_OFF is false. */
   unsigned long off, len;
@@ -279,8 +326,11 @@ struct app_local_s
      hierarchy.  Thus we assume this is directly below the MF.  */
   unsigned short home_df;
 
-  /* The type of the card. */
+  /* The type of the card's OS. */
   card_type_t card_type;
+
+  /* The vendor's product.  */
+  card_product_t card_product;
 
   /* Flag indicating whether we may use direct path selection. */
   int direct_path_selection;
@@ -304,6 +354,9 @@ struct app_local_s
   unsigned char *serialno;
   size_t serialnolen;
 
+  /* The manufacturerID from the TokenInfo EF.  Malloced. */
+  char *manufacturer_id;
+
   /* Information on all certificates. */
   cdf_object_t certificate_info;
   /* Information on all trusted certificates. */
@@ -321,8 +374,11 @@ struct app_local_s
 
 
 /*** Local prototypes.  ***/
+static gpg_error_t keygrip_from_prkdf (app_t app, prkdf_object_t prkdf);
 static gpg_error_t readcert_by_cdf (app_t app, cdf_object_t cdf,
                                     unsigned char **r_cert, size_t *r_certlen);
+static char *get_dispserialno (app_t app, prkdf_object_t prkdf);
+static gpg_error_t do_getattr (app_t app, ctrl_t ctrl, const char *name);
 
 
 
@@ -347,6 +403,8 @@ release_prkdflist (prkdf_object_t a)
   while (a)
     {
       prkdf_object_t tmp = a->next;
+      xfree (a->common_name);
+      xfree (a->serial_number);
       xfree (a->objid);
       xfree (a->authid);
       xfree (a);
@@ -391,6 +449,7 @@ do_deinit (app_t app)
       release_cdflist (app->app_local->useful_certificate_info);
       release_prkdflist (app->app_local->private_key_info);
       release_aodflist (app->app_local->auth_object_info);
+      xfree (app->app_local->manufacturer_id);
       xfree (app->app_local->serialno);
       xfree (app->app_local);
       app->app_local = NULL;
@@ -412,14 +471,14 @@ select_and_read_binary (int slot, unsigned short efid, const char *efid_desc,
   err = iso7816_select_file (slot, efid, 0);
   if (err)
     {
-      log_error ("error selecting %s (0x%04X): %s\n",
+      log_error ("p15: error selecting %s (0x%04X): %s\n",
                  efid_desc, efid, gpg_strerror (err));
       return err;
     }
   err = iso7816_read_binary (slot, 0, 0, buffer, buflen);
   if (err)
     {
-      log_error ("error reading %s (0x%04X): %s\n",
+      log_error ("p15: error reading %s (0x%04X): %s\n",
                  efid_desc, efid, gpg_strerror (err));
       return err;
     }
@@ -439,14 +498,14 @@ select_ef_by_path (app_t app, const unsigned short *path, size_t pathlen)
     return gpg_error (GPG_ERR_INV_VALUE);
 
   if (pathlen && *path != 0x3f00 )
-    log_debug ("WARNING: relative path selection not yet implemented\n");
+    log_error ("p15: warning: relative path selection not yet implemented\n");
 
   if (app->app_local->direct_path_selection)
     {
       err = iso7816_select_path (app->slot, path+1, pathlen-1);
       if (err)
         {
-          log_error ("error selecting path ");
+          log_error ("p15: error selecting path ");
           for (j=0; j < pathlen; j++)
             log_printf ("%04hX", path[j]);
           log_printf (": %s\n", gpg_strerror (err));
@@ -464,7 +523,7 @@ select_ef_by_path (app_t app, const unsigned short *path, size_t pathlen)
           err = iso7816_select_file (app->slot, path[i], !(i+1 == pathlen));
           if (err)
             {
-              log_error ("error selecting part %d from path ", i);
+              log_error ("p15: error selecting part %d from path ", i);
               for (j=0; j < pathlen; j++)
                 log_printf ("%04hX", path[j]);
               log_printf (": %s\n", gpg_strerror (err));
@@ -492,35 +551,55 @@ parse_certid (app_t app, const char *certid,
   *r_objid = NULL;
   *r_objidlen = 0;
 
-  if (app->app_local->home_df)
-    snprintf (tmpbuf, sizeof tmpbuf,
-              "P15-%04X.", (unsigned int)(app->app_local->home_df & 0xffff));
-  else
-    strcpy (tmpbuf, "P15.");
-  if (strncmp (certid, tmpbuf, strlen (tmpbuf)) )
+  if (certid[0] != 'P' && strlen (certid) == 40)  /* This is a keygrip.  */
     {
-      if (!strncmp (certid, "P15.", 4)
-          || (!strncmp (certid, "P15-", 4)
-              && hexdigitp (certid+4)
-              && hexdigitp (certid+5)
-              && hexdigitp (certid+6)
-              && hexdigitp (certid+7)
-              && certid[8] == '.'))
-        return gpg_error (GPG_ERR_NOT_FOUND);
-      return gpg_error (GPG_ERR_INV_ID);
-    }
-  certid += strlen (tmpbuf);
+      prkdf_object_t prkdf;
 
-  for (s=certid, objidlen=0; hexdigitp (s); s++, objidlen++)
-    ;
-  if (*s || !objidlen || (objidlen%2))
-    return gpg_error (GPG_ERR_INV_ID);
-  objidlen /= 2;
-  objid = xtrymalloc (objidlen);
-  if (!objid)
-    return gpg_error_from_syserror ();
-  for (s=certid, i=0; i < objidlen; i++, s+=2)
-    objid[i] = xtoi_2 (s);
+      for (prkdf = app->app_local->private_key_info;
+           prkdf; prkdf = prkdf->next)
+        if (!keygrip_from_prkdf (app, prkdf)
+            && !strcmp (certid, prkdf->keygrip))
+          break;
+      if (!prkdf || !prkdf->objidlen || !prkdf->objid)
+        return gpg_error (GPG_ERR_NOT_FOUND);
+      objidlen = prkdf->objidlen;
+      objid = xtrymalloc (objidlen);
+      if (!objid)
+        return gpg_error_from_syserror ();
+      memcpy (objid, prkdf->objid, prkdf->objidlen);
+    }
+  else /* This is a usual keyref.  */
+    {
+      if (app->app_local->home_df)
+        snprintf (tmpbuf, sizeof tmpbuf, "P15-%04X.",
+                  (unsigned int)(app->app_local->home_df & 0xffff));
+      else
+        strcpy (tmpbuf, "P15.");
+      if (strncmp (certid, tmpbuf, strlen (tmpbuf)) )
+        {
+          if (!strncmp (certid, "P15.", 4)
+              || (!strncmp (certid, "P15-", 4)
+                  && hexdigitp (certid+4)
+                  && hexdigitp (certid+5)
+                  && hexdigitp (certid+6)
+                  && hexdigitp (certid+7)
+                  && certid[8] == '.'))
+            return gpg_error (GPG_ERR_NOT_FOUND);
+          return gpg_error (GPG_ERR_INV_ID);
+        }
+      certid += strlen (tmpbuf);
+      for (s=certid, objidlen=0; hexdigitp (s); s++, objidlen++)
+        ;
+      if (*s || !objidlen || (objidlen%2))
+        return gpg_error (GPG_ERR_INV_ID);
+      objidlen /= 2;
+      objid = xtrymalloc (objidlen);
+      if (!objid)
+        return gpg_error_from_syserror ();
+      for (s=certid, i=0; i < objidlen; i++, s+=2)
+        objid[i] = xtoi_2 (s);
+    }
+
   *r_objid = objid;
   *r_objidlen = objidlen;
   return 0;
@@ -595,9 +674,9 @@ prkdf_object_from_keyidstr (app_t app, const char *keyidstr,
 
    A0 06 30 04 04 02 60 34  = Private Keys
    A4 06 30 04 04 02 60 35  = Certificates
-   A5 06 30 04 04 02 60 36  = TrustedCertificates
-   A7 06 30 04 04 02 60 37  = DataObjects
-   A8 06 30 04 04 02 60 38  = AuthObjects
+   A5 06 30 04 04 02 60 36  = Trusted Certificates
+   A7 06 30 04 04 02 60 37  = Data Objects
+   A8 06 30 04 04 02 60 38  = Auth Objects
 
    These are all PathOrObjects using the path CHOICE element.  The
    paths are octet strings of length 2.  Using this Path CHOICE
@@ -608,9 +687,10 @@ read_ef_odf (app_t app, unsigned short odf_fid)
 {
   gpg_error_t err;
   unsigned char *buffer, *p;
-  size_t buflen;
+  size_t buflen, n;
   unsigned short value;
   size_t offset;
+  unsigned short home_df = 0;
 
   err = select_and_read_binary (app->slot, odf_fid, "ODF", &buffer, &buflen);
   if (err)
@@ -618,10 +698,12 @@ read_ef_odf (app_t app, unsigned short odf_fid)
 
   if (buflen < 8)
     {
-      log_error ("error: ODF too short\n");
+      log_error ("p15: error: ODF too short\n");
       xfree (buffer);
       return gpg_error (GPG_ERR_INV_OBJ);
     }
+
+  home_df = app->app_local->home_df;
   p = buffer;
   while (buflen && *p && *p != 0xff)
     {
@@ -634,17 +716,35 @@ read_ef_odf (app_t app, unsigned short odf_fid)
       else if ( buflen >= 12
                 && (p[0] & 0xf0) == 0xA0
                 && !memcmp (p+1, "\x0a\x30\x08\x04\x06\x3F\x00", 7)
-                && app->app_local->home_df == ((p[8]<<8)|p[9]) )
+                && (!home_df || home_df == ((p[8]<<8)|p[9])) )
         {
+          /* If we do not know the home DF, we take it from the first
+           * ODF object.  Here are sample values:
+           * a0 0a 30 08 0406 3f00 5015 4401
+           * a1 0a 30 08 0406 3f00 5015 4411
+           * a4 0a 30 08 0406 3f00 5015 4441
+           * a5 0a 30 08 0406 3f00 5015 4451
+           * a8 0a 30 08 0406 3f00 5015 4481
+           * 00000000 */
+          if (!home_df)
+            {
+              home_df = ((p[8]<<8)|p[9]);
+              app->app_local->home_df = home_df;
+              log_info ("p15: application directory detected as 0x%04hX\n",
+                        home_df);
+              /* We assume that direct path selection is possible.  */
+              app->app_local->direct_path_selection = 1;
+            }
+
           /* We only allow a full path if all files are at the same
-             level and below the home directory.  The extend this we
+             level and below the home directory.  To extend this we
              would need to make use of new data type capable of
              keeping a full path. */
           offset = 10;
         }
       else
         {
-          log_error ("ODF format is not supported by us\n");
+          log_printhex (p, buflen, "p15: ODF format not supported:");
           xfree (buffer);
           return gpg_error (GPG_ERR_INV_OBJ);
         }
@@ -663,7 +763,8 @@ read_ef_odf (app_t app, unsigned short odf_fid)
         }
       if (value)
         {
-          log_error ("duplicate object type %d in ODF ignored\n",(p[0]&0x0f));
+          log_error ("p15: duplicate object type %d in ODF ignored\n",
+                     (p[0]&0x0f));
           continue;
         }
       value = ((p[offset] << 8) | p[offset+1]);
@@ -679,7 +780,8 @@ read_ef_odf (app_t app, unsigned short odf_fid)
         case 7: app->app_local->odf.data_objects = value; break;
         case 8: app->app_local->odf.auth_objects = value; break;
         default:
-          log_error ("unknown object type %d in ODF ignored\n", (p[0]&0x0f));
+          log_error ("p15: unknown object type %d in ODF ignored\n",
+                     (p[0]&0x0f));
         }
       offset += 2;
 
@@ -690,8 +792,16 @@ read_ef_odf (app_t app, unsigned short odf_fid)
     }
 
   if (buflen)
-    log_info ("warning: %u bytes of garbage detected at end of ODF\n",
-              (unsigned int)buflen);
+    {
+      /* Print a warning if non-null garbage is left over.  */
+      for (n=0; n < buflen && !p[n]; n++)
+        ;
+      if (n < buflen)
+        {
+          log_info ("p15: warning: garbage detected at end of ODF: ");
+          log_printhex (p, buflen, "");
+        }
+    }
 
   xfree (buffer);
   return 0;
@@ -861,7 +971,8 @@ read_ef_prkdf (app_t app, unsigned short fid, prkdf_object_t *result)
         err = gpg_error (GPG_ERR_INV_OBJ);
       if (err)
         {
-          log_error ("error parsing PrKDF record: %s\n", gpg_strerror (err));
+          log_error ("p15: error parsing PrKDF record: %s\n",
+                     gpg_strerror (err));
           goto leave;
         }
       pp = p;
@@ -1202,38 +1313,41 @@ read_ef_prkdf (app_t app, unsigned short fid, prkdf_object_t *result)
         }
 
 
-      log_debug ("PrKDF %04hX: id=", fid);
-      for (i=0; i < prkdf->objidlen; i++)
-        log_printf ("%02X", prkdf->objid[i]);
-      log_printf (" path=");
-      for (i=0; i < prkdf->pathlen; i++)
-        log_printf ("%04hX", prkdf->path[i]);
-      if (prkdf->have_off)
-        log_printf ("[%lu/%lu]", prkdf->off, prkdf->len);
-      if (prkdf->authid)
+      if (opt.verbose)
         {
-          log_printf (" authid=");
-          for (i=0; i < prkdf->authidlen; i++)
-            log_printf ("%02X", prkdf->authid[i]);
+          log_info ("p15: PrKDF %04hX: id=", fid);
+          for (i=0; i < prkdf->objidlen; i++)
+            log_printf ("%02X", prkdf->objid[i]);
+          log_printf (" path=");
+          for (i=0; i < prkdf->pathlen; i++)
+            log_printf ("%s%04hX", i?"/":"",prkdf->path[i]);
+          if (prkdf->have_off)
+            log_printf ("[%lu/%lu]", prkdf->off, prkdf->len);
+          if (prkdf->authid)
+            {
+              log_printf (" authid=");
+              for (i=0; i < prkdf->authidlen; i++)
+                log_printf ("%02X", prkdf->authid[i]);
+            }
+          if (prkdf->key_reference_valid)
+            log_printf (" keyref=0x%02lX", prkdf->key_reference);
+          log_info ("p15:             usage=");
+          s = "";
+          if (prkdf->usageflags.encrypt) log_printf ("%sencrypt", s), s = ",";
+          if (prkdf->usageflags.decrypt) log_printf ("%sdecrypt", s), s = ",";
+          if (prkdf->usageflags.sign   ) log_printf ("%ssign", s), s = ",";
+          if (prkdf->usageflags.sign_recover)
+            log_printf ("%ssign_recover", s), s = ",";
+          if (prkdf->usageflags.wrap   ) log_printf ("%swrap", s), s = ",";
+          if (prkdf->usageflags.unwrap ) log_printf ("%sunwrap", s), s = ",";
+          if (prkdf->usageflags.verify ) log_printf ("%sverify", s), s = ",";
+          if (prkdf->usageflags.verify_recover)
+            log_printf ("%sverify_recover", s), s = ",";
+          if (prkdf->usageflags.derive ) log_printf ("%sderive", s), s = ",";
+          if (prkdf->usageflags.non_repudiation)
+            log_printf ("%snon_repudiation", s), s = ",";
+          log_printf ("\n");
         }
-      if (prkdf->key_reference_valid)
-        log_printf (" keyref=0x%02lX", prkdf->key_reference);
-      log_printf (" usage=");
-      s = "";
-      if (prkdf->usageflags.encrypt) log_printf ("%sencrypt", s), s = ",";
-      if (prkdf->usageflags.decrypt) log_printf ("%sdecrypt", s), s = ",";
-      if (prkdf->usageflags.sign   ) log_printf ("%ssign", s), s = ",";
-      if (prkdf->usageflags.sign_recover)
-        log_printf ("%ssign_recover", s), s = ",";
-      if (prkdf->usageflags.wrap   ) log_printf ("%swrap", s), s = ",";
-      if (prkdf->usageflags.unwrap ) log_printf ("%sunwrap", s), s = ",";
-      if (prkdf->usageflags.verify ) log_printf ("%sverify", s), s = ",";
-      if (prkdf->usageflags.verify_recover)
-        log_printf ("%sverify_recover", s), s = ",";
-      if (prkdf->usageflags.derive ) log_printf ("%sderive", s), s = ",";
-      if (prkdf->usageflags.non_repudiation)
-        log_printf ("%snon_repudiation", s), s = ",";
-      log_printf ("\n");
 
       /* Put it into the list. */
       prkdf->next = prkdflist;
@@ -1242,7 +1356,7 @@ read_ef_prkdf (app_t app, unsigned short fid, prkdf_object_t *result)
       continue; /* Ready. */
 
     parse_error:
-      log_error ("error parsing PrKDF record (%d): %s - skipped\n",
+      log_error ("p15: error parsing PrKDF record (%d): %s - skipped\n",
                  where, errstr? errstr : gpg_strerror (err));
       if (prkdf)
         {
@@ -1309,7 +1423,7 @@ read_ef_cdf (app_t app, unsigned short fid, cdf_object_t *result)
         err = gpg_error (GPG_ERR_INV_OBJ);
       if (err)
         {
-          log_error ("error parsing CDF record: %s\n", gpg_strerror (err));
+          log_error ("p15: error parsing CDF record: %s\n", gpg_strerror (err));
           goto leave;
         }
       pp = p;
@@ -1470,15 +1584,18 @@ read_ef_cdf (app_t app, unsigned short fid, cdf_object_t *result)
           cdf->len = ul;
         }
 
-      log_debug ("CDF %04hX: id=", fid);
-      for (i=0; i < cdf->objidlen; i++)
-        log_printf ("%02X", cdf->objid[i]);
-      log_printf (" path=");
-      for (i=0; i < cdf->pathlen; i++)
-        log_printf ("%04hX", cdf->path[i]);
-      if (cdf->have_off)
-        log_printf ("[%lu/%lu]", cdf->off, cdf->len);
-      log_printf ("\n");
+      if (opt.verbose)
+        {
+          log_info ("p15: CDF %04hX: id=", fid);
+          for (i=0; i < cdf->objidlen; i++)
+            log_printf ("%02X", cdf->objid[i]);
+          log_printf (" path=");
+          for (i=0; i < cdf->pathlen; i++)
+            log_printf ("%s%04hX", i?"/":"", cdf->path[i]);
+          if (cdf->have_off)
+            log_printf ("[%lu/%lu]", cdf->off, cdf->len);
+          log_printf ("\n");
+        }
 
       /* Put it into the list. */
       cdf->next = cdflist;
@@ -1487,7 +1604,7 @@ read_ef_cdf (app_t app, unsigned short fid, cdf_object_t *result)
       continue; /* Ready. */
 
     parse_error:
-      log_error ("error parsing CDF record (%d): %s - skipped\n",
+      log_error ("p15: error parsing CDF record (%d): %s - skipped\n",
                  where, errstr? errstr : gpg_strerror (err));
       xfree (cdf);
       err = 0;
@@ -1583,7 +1700,8 @@ read_ef_aodf (app_t app, unsigned short fid, aodf_object_t *result)
         err = gpg_error (GPG_ERR_INV_OBJ);
       if (err)
         {
-          log_error ("error parsing AODF record: %s\n", gpg_strerror (err));
+          log_error ("p15: error parsing AODF record: %s\n",
+                     gpg_strerror (err));
           goto leave;
         }
       pp = p;
@@ -1595,6 +1713,7 @@ read_ef_aodf (app_t app, unsigned short fid, aodf_object_t *result)
       aodf = xtrycalloc (1, sizeof *aodf);
       if (!aodf)
         goto no_core;
+      aodf->fid = fid;
 
       /* Parse the commonObjectAttributes.  */
       where = __LINE__;
@@ -2057,73 +2176,77 @@ read_ef_aodf (app_t app, unsigned short fid, aodf_object_t *result)
          extensions of pkcs#15. */
 
     ready:
-      log_debug ("AODF %04hX: id=", fid);
-      for (i=0; i < aodf->objidlen; i++)
-        log_printf ("%02X", aodf->objid[i]);
-      if (aodf->authid)
+      if (opt.verbose)
         {
-          log_printf (" authid=");
-          for (i=0; i < aodf->authidlen; i++)
-            log_printf ("%02X", aodf->authid[i]);
-        }
-      log_printf (" flags=");
-      s = "";
-      if (aodf->pinflags.case_sensitive)
-        log_printf ("%scase_sensitive", s), s = ",";
-      if (aodf->pinflags.local)
-        log_printf ("%slocal", s), s = ",";
-      if (aodf->pinflags.change_disabled)
-        log_printf ("%schange_disabled", s), s = ",";
-      if (aodf->pinflags.unblock_disabled)
-        log_printf ("%sunblock_disabled", s), s = ",";
-      if (aodf->pinflags.initialized)
-        log_printf ("%sinitialized", s), s = ",";
-      if (aodf->pinflags.needs_padding)
-        log_printf ("%sneeds_padding", s), s = ",";
-      if (aodf->pinflags.unblocking_pin)
-        log_printf ("%sunblocking_pin", s), s = ",";
-      if (aodf->pinflags.so_pin)
-        log_printf ("%sso_pin", s), s = ",";
-      if (aodf->pinflags.disable_allowed)
-        log_printf ("%sdisable_allowed", s), s = ",";
-      if (aodf->pinflags.integrity_protected)
-        log_printf ("%sintegrity_protected", s), s = ",";
-      if (aodf->pinflags.confidentiality_protected)
-        log_printf ("%sconfidentiality_protected", s), s = ",";
-      if (aodf->pinflags.exchange_ref_data)
-        log_printf ("%sexchange_ref_data", s), s = ",";
-      {
-        char numbuf[50];
-        switch (aodf->pintype)
+          log_info ("p15: AODF %04hX: id=", fid);
+          for (i=0; i < aodf->objidlen; i++)
+            log_printf ("%02X", aodf->objid[i]);
+          if (aodf->authid)
+            {
+              log_printf (" authid=");
+              for (i=0; i < aodf->authidlen; i++)
+                log_printf ("%02X", aodf->authid[i]);
+            }
+          if (aodf->pin_reference_valid)
+            log_printf (" pinref=0x%02lX", aodf->pin_reference);
+          if (aodf->pathlen)
+            {
+              log_printf (" path=");
+              for (i=0; i < aodf->pathlen; i++)
+                log_printf ("%s%04hX", i?"/":"",aodf->path[i]);
+              if (aodf->have_off)
+                log_printf ("[%lu/%lu]", aodf->off, aodf->len);
+            }
+          log_printf (" min=%lu", aodf->min_length);
+          log_printf (" stored=%lu", aodf->stored_length);
+          if (aodf->max_length_valid)
+            log_printf (" max=%lu", aodf->max_length);
+          if (aodf->pad_char_valid)
+            log_printf (" pad=0x%02x", aodf->pad_char);
+
+          log_info ("p15:            flags=");
+          s = "";
+          if (aodf->pinflags.case_sensitive)
+            log_printf ("%scase_sensitive", s), s = ",";
+          if (aodf->pinflags.local)
+            log_printf ("%slocal", s), s = ",";
+          if (aodf->pinflags.change_disabled)
+            log_printf ("%schange_disabled", s), s = ",";
+          if (aodf->pinflags.unblock_disabled)
+            log_printf ("%sunblock_disabled", s), s = ",";
+          if (aodf->pinflags.initialized)
+            log_printf ("%sinitialized", s), s = ",";
+          if (aodf->pinflags.needs_padding)
+            log_printf ("%sneeds_padding", s), s = ",";
+          if (aodf->pinflags.unblocking_pin)
+            log_printf ("%sunblocking_pin", s), s = ",";
+          if (aodf->pinflags.so_pin)
+            log_printf ("%sso_pin", s), s = ",";
+          if (aodf->pinflags.disable_allowed)
+            log_printf ("%sdisable_allowed", s), s = ",";
+          if (aodf->pinflags.integrity_protected)
+            log_printf ("%sintegrity_protected", s), s = ",";
+          if (aodf->pinflags.confidentiality_protected)
+            log_printf ("%sconfidentiality_protected", s), s = ",";
+          if (aodf->pinflags.exchange_ref_data)
+            log_printf ("%sexchange_ref_data", s), s = ",";
           {
-          case PIN_TYPE_BCD: s = "bcd"; break;
-          case PIN_TYPE_ASCII_NUMERIC: s = "ascii-numeric"; break;
-          case PIN_TYPE_UTF8: s = "utf8"; break;
-          case PIN_TYPE_HALF_NIBBLE_BCD: s = "half-nibble-bcd"; break;
-          case PIN_TYPE_ISO9564_1: s = "iso9564-1"; break;
-          default:
-            sprintf (numbuf, "%lu", (unsigned long)aodf->pintype);
-            s = numbuf;
+            char numbuf[50];
+            switch (aodf->pintype)
+              {
+              case PIN_TYPE_BCD: s = "bcd"; break;
+              case PIN_TYPE_ASCII_NUMERIC: s = "ascii-numeric"; break;
+              case PIN_TYPE_UTF8: s = "utf8"; break;
+              case PIN_TYPE_HALF_NIBBLE_BCD: s = "half-nibble-bcd"; break;
+              case PIN_TYPE_ISO9564_1: s = "iso9564-1"; break;
+              default:
+                sprintf (numbuf, "%lu", (unsigned long)aodf->pintype);
+                s = numbuf;
+              }
+            log_printf (" type=%s", s);
           }
-        log_printf (" type=%s", s);
-      }
-      log_printf (" min=%lu", aodf->min_length);
-      log_printf (" stored=%lu", aodf->stored_length);
-      if (aodf->max_length_valid)
-        log_printf (" max=%lu", aodf->max_length);
-      if (aodf->pad_char_valid)
-        log_printf (" pad=0x%02x", aodf->pad_char);
-      if (aodf->pin_reference_valid)
-        log_printf (" pinref=0x%02lX", aodf->pin_reference);
-      if (aodf->pathlen)
-        {
-          log_printf (" path=");
-          for (i=0; i < aodf->pathlen; i++)
-            log_printf ("%04hX", aodf->path[i]);
-          if (aodf->have_off)
-            log_printf ("[%lu/%lu]", aodf->off, aodf->len);
+          log_printf ("\n");
         }
-      log_printf ("\n");
 
       /* Put it into the list. */
       aodf->next = aodflist;
@@ -2137,7 +2260,7 @@ read_ef_aodf (app_t app, unsigned short fid, aodf_object_t *result)
       goto leave;
 
     parse_error:
-      log_error ("error parsing AODF record (%d): %s - skipped\n",
+      log_error ("p15: error parsing AODF record (%d): %s - skipped\n",
                  where, errstr? errstr : gpg_strerror (err));
       err = 0;
       release_aodf_object (aodf);
@@ -2153,6 +2276,62 @@ read_ef_aodf (app_t app, unsigned short fid, aodf_object_t *result)
 }
 
 
+/* Print the BIT STRING with the tokenflags from the TokenInfo.  */
+static void
+print_tokeninfo_tokenflags (const unsigned char *der, size_t derlen)
+{
+  unsigned int bits, mask;
+  int i, unused, full;
+  int other = 0;
+
+  if (!derlen)
+    {
+      log_printf (" [invalid object]");
+      return;
+    }
+
+  unused = *der++; derlen--;
+  if ((!derlen && unused) || unused/8 > derlen)
+    {
+      log_printf (" [wrong encoding]");
+      return;
+    }
+  full = derlen - (unused+7)/8;
+  unused %= 8;
+  mask = 0;
+  for (i=1; unused; i <<= 1, unused--)
+    mask |= i;
+
+  /* First octet */
+  if (derlen)
+    {
+      bits = *der++; derlen--;
+      if (full)
+        full--;
+      else
+        {
+          bits &= ~mask;
+          mask = 0;
+        }
+    }
+  else
+    bits = 0;
+  if ((bits & 0x80)) log_printf (" readonly");
+  if ((bits & 0x40)) log_printf (" loginRequired");
+  if ((bits & 0x20)) log_printf (" prnGeneration");
+  if ((bits & 0x10)) log_printf (" eidCompliant");
+  if ((bits & 0x08)) other = 1;
+  if ((bits & 0x04)) other = 1;
+  if ((bits & 0x02)) other = 1;
+  if ((bits & 0x01)) other = 1;
+
+  /* Next octet.  */
+  if (derlen)
+    other = 1;
+
+  if (other)
+    log_printf (" [unknown]");
+}
 
 
 
@@ -2216,6 +2395,10 @@ read_ef_tokeninfo (app_t app)
   int class, tag, constructed, ndef;
   unsigned long ul;
 
+  xfree (app->app_local->manufacturer_id);
+  app->app_local->manufacturer_id = NULL;
+  app->app_local->card_product = CARD_PRODUCT_UNKNOWN;
+
   err = select_and_read_binary (app->slot, 0x5032, "TokenInfo",
                                 &buffer, &buflen);
   if (err)
@@ -2230,7 +2413,7 @@ read_ef_tokeninfo (app_t app)
     err = gpg_error (GPG_ERR_INV_OBJ);
   if (err)
     {
-      log_error ("error parsing TokenInfo: %s\n", gpg_strerror (err));
+      log_error ("p15: error parsing TokenInfo: %s\n", gpg_strerror (err));
       goto leave;
     }
 
@@ -2252,11 +2435,13 @@ read_ef_tokeninfo (app_t app)
     }
   if (ul)
     {
-      log_error ("invalid version %lu in TokenInfo\n", ul);
+      log_error ("p15: invalid version %lu in TokenInfo\n", ul);
       err = gpg_error (GPG_ERR_INV_OBJ);
       goto leave;
     }
 
+  if (opt.verbose)
+    log_info ("p15: TokenInfo:\n");
   /* serialNumber.  */
   err = parse_ber_header (&p, &n, &class, &tag, &constructed,
                           &ndef, &objlen, &hdrlen);
@@ -2274,7 +2459,68 @@ read_ef_tokeninfo (app_t app)
     }
   memcpy (app->app_local->serialno, p, objlen);
   app->app_local->serialnolen = objlen;
-  log_printhex ("Serialnumber from EF(TokenInfo) is:", p, objlen);
+  if (opt.verbose)
+    {
+      /* (We use a separate log_info to avoid the "DBG:" prefix.)  */
+      log_info ("p15:  serialNumber .: ");
+      log_printhex (p, objlen, "");
+    }
+  p += objlen;
+  n -= objlen;
+
+  /* Is there an optional manufacturerID?  */
+  err = parse_ber_header (&p, &n, &class, &tag, &constructed,
+                          &ndef, &objlen, &hdrlen);
+  if (!err && (objlen > n || !objlen))
+    err = gpg_error (GPG_ERR_INV_OBJ);
+  if (err)
+    goto leave;
+  if (class == CLASS_UNIVERSAL && tag == TAG_UTF8_STRING)
+    {
+      if (opt.verbose)
+        log_info ("p15:  manufacturerID: %.*s\n", (int)objlen, p);
+      app->app_local->manufacturer_id = percent_data_escape (0, NULL,
+                                                             p, objlen);
+      p += objlen;
+      n -= objlen;
+      /* Get next TLV.  */
+      err = parse_ber_header (&p, &n, &class, &tag, &constructed,
+                              &ndef, &objlen, &hdrlen);
+      if (!err && (objlen > n || !objlen))
+        err = gpg_error (GPG_ERR_INV_OBJ);
+      if (err)
+        goto leave;
+    }
+  if (class == CLASS_CONTEXT && tag == 0)
+    {
+      if (opt.verbose)
+        log_info ("p15:  label ........: %.*s\n", (int)objlen, p);
+      if (objlen > 15 && !memcmp (p, "D-TRUST Card V3", 15)
+          && app->app_local->card_type == CARD_TYPE_CARDOS_50)
+        app->app_local->card_product = CARD_PRODUCT_DTRUST;
+
+      p += objlen;
+      n -= objlen;
+      /* Get next TLV.  */
+      err = parse_ber_header (&p, &n, &class, &tag, &constructed,
+                              &ndef, &objlen, &hdrlen);
+      if (!err && (objlen > n || !objlen))
+        err = gpg_error (GPG_ERR_INV_OBJ);
+      if (err)
+        goto leave;
+    }
+  /* The next is the mandatory tokenflags object.  */
+  if (class == CLASS_UNIVERSAL && tag == TAG_BIT_STRING)
+    {
+      if (opt.verbose)
+        {
+          log_info ("p15:  tokenflags ...:");
+          print_tokeninfo_tokenflags (p, objlen);
+          log_printf ("\n");
+        }
+      p += objlen;
+      n -= objlen;
+    }
 
  leave:
   xfree (buffer);
@@ -2386,21 +2632,31 @@ send_certinfo (app_t app, ctrl_t ctrl, const char *certtype,
 
 
 /* Get the keygrip of the private key object PRKDF.  On success the
-   keygrip gets returned in the caller provided 41 byte buffer
-   R_GRIPSTR. */
+ * keygrip, the algo and the length are stored in the KEYGRIP,
+ * KEYALGO, and KEYNBITS fields of the PRKDF object.  */
 static gpg_error_t
-keygripstr_from_prkdf (app_t app, prkdf_object_t prkdf, char *r_gripstr)
+keygrip_from_prkdf (app_t app, prkdf_object_t prkdf)
 {
   gpg_error_t err;
   cdf_object_t cdf;
   unsigned char *der;
   size_t derlen;
   ksba_cert_t cert;
+  gcry_sexp_t s_pkey = NULL;
+
+  /* Easy if we got a cached version.  */
+  if (prkdf->keygrip_valid)
+    return 0;
+
+  xfree (prkdf->common_name);
+  prkdf->common_name = NULL;
+  xfree (prkdf->serial_number);
+  prkdf->serial_number = NULL;
 
   /* FIXME: We should check whether a public key directory file and a
      matching public key for PRKDF is available.  This should make
      extraction of the key much easier.  My current test card doesn't
-     have one, so we can only use the fallback solution bu looking for
+     have one, so we can only use the fallback solution by looking for
      a matching certificate and extract the key from there. */
 
   /* Look for a matching certificate. A certificate matches if the Id
@@ -2420,67 +2676,172 @@ keygripstr_from_prkdf (app_t app, prkdf_object_t prkdf, char *r_gripstr)
           && !memcmp (cdf->objid, prkdf->objid, prkdf->objidlen))
         break;
   if (!cdf)
-    return gpg_error (GPG_ERR_NOT_FOUND);
+    {
+      err = gpg_error (GPG_ERR_NOT_FOUND);
+      goto leave;
+    }
 
   err = readcert_by_cdf (app, cdf, &der, &derlen);
   if (err)
-    return err;
+    goto leave;
 
   err = ksba_cert_new (&cert);
   if (!err)
     err = ksba_cert_init_from_mem (cert, der, derlen);
   xfree (der);
   if (!err)
-    err = app_help_get_keygrip_string (cert, r_gripstr);
-  ksba_cert_release (cert);
+    err = app_help_get_keygrip_string (cert, prkdf->keygrip, &s_pkey);
+  if (!err)
+    {
+      /* Try to get the CN and the SerialNumber from the certificate;
+       * we use a very simple approach here which should work in many
+       * cases.  Eventually we should add a rfc-2253 parser into
+       * libksba to make it easier to parse such a string.
+       *
+       * First example string:
+       *   "CN=Otto Schily,O=Miniluv,C=DE"
+       * Second example string:
+       *   "2.5.4.5=#445452323030303236333531,2.5.4.4=#4B6F6368,"
+       *   "2.5.4.42=#5765726E6572,CN=Werner Koch,OU=For testing"
+       *   " purposes only!,O=Testorganisation,C=DE"
+       */
+      char *dn = ksba_cert_get_subject (cert, 0);
+      if (dn)
+        {
+          char *p, *pend, *buf;
 
+          p = strstr (dn, "CN=");
+          if (p && (p==dn || p[-1] == ','))
+            {
+              p += 3;
+              if (!(pend = strchr (p, ',')))
+                pend = p + strlen (p);
+              if (pend && pend > p
+                  && (prkdf->common_name = xtrymalloc ((pend - p) + 1)))
+                {
+                  memcpy (prkdf->common_name, p, pend-p);
+                  prkdf->common_name[pend-p] = 0;
+                }
+            }
+          p = strstr (dn, "2.5.4.5=#"); /* OID of the SerialNumber */
+          if (p && (p==dn || p[-1] == ','))
+            {
+              p += 9;
+              if (!(pend = strchr (p, ',')))
+                pend = p + strlen (p);
+              if (pend && pend > p
+                  && (buf = xtrymalloc ((pend - p) + 1)))
+                {
+                  memcpy (buf, p, pend-p);
+                  buf[pend-p] = 0;
+                  if (!hex2str (buf, buf, strlen (buf)+1, NULL))
+                    xfree (buf);  /* Invalid hex encoding.  */
+                  else
+                    prkdf->serial_number = buf;
+                }
+            }
+          ksba_free (dn);
+        }
+    }
+
+  ksba_cert_release (cert);
+  if (err)
+    goto leave;
+
+  prkdf->keyalgo = get_pk_algo_from_key (s_pkey);
+  if (!prkdf->keyalgo)
+    {
+      err = gpg_error (GPG_ERR_PUBKEY_ALGO);
+      goto leave;
+    }
+
+  prkdf->keynbits = gcry_pk_get_nbits (s_pkey);
+  if (!prkdf->keynbits)
+    {
+      err = gpg_error (GPG_ERR_PUBKEY_ALGO);
+      goto leave;
+    }
+
+  prkdf->keygrip_valid = 1;  /* Yeah, got everything.  */
+
+ leave:
+  gcry_sexp_release (s_pkey);
   return err;
 }
 
 
+/* Return a malloced keyref string for PRKDF.  Returns NULL on
+ * malloc failure.  */
+static char *
+keyref_from_prkdf (app_t app, prkdf_object_t prkdf)
+{
+  char *buf, *p;
+
+  buf = xtrymalloc (4 + 5 + prkdf->objidlen*2 + 1);
+  if (!buf)
+    return NULL;
+  p = stpcpy (buf, "P15");
+  if (app->app_local->home_df)
+    {
+      snprintf (p, 6, "-%04X",
+                (unsigned int)(app->app_local->home_df & 0xffff));
+      p += 5;
+    }
+  p = stpcpy (p, ".");
+  bin2hex (prkdf->objid, prkdf->objidlen, p);
+  return buf;
+}
 
 
 /* Helper to do_learn_status: Send information about all known
    keypairs back.  FIXME: much code duplication from
    send_certinfo(). */
 static gpg_error_t
-send_keypairinfo (app_t app, ctrl_t ctrl, prkdf_object_t keyinfo)
+send_keypairinfo (app_t app, ctrl_t ctrl, prkdf_object_t prkdf)
 {
   gpg_error_t err;
 
-  for (; keyinfo; keyinfo = keyinfo->next)
+  for (; prkdf; prkdf = prkdf->next)
     {
-      char gripstr[40+1];
-      char *buf, *p;
+      char *buf;
       int j;
 
-      buf = xtrymalloc (9 + keyinfo->objidlen*2 + 1);
+      buf = keyref_from_prkdf (app, prkdf);
       if (!buf)
         return gpg_error_from_syserror ();
-      p = stpcpy (buf, "P15");
-      if (app->app_local->home_df)
-        {
-          snprintf (p, 6, "-%04X",
-                    (unsigned int)(app->app_local->home_df & 0xffff));
-          p += 5;
-        }
-      p = stpcpy (p, ".");
-      bin2hex (keyinfo->objid, keyinfo->objidlen, p);
 
-      err = keygripstr_from_prkdf (app, keyinfo, gripstr);
+      err = keygrip_from_prkdf (app, prkdf);
       if (err)
         {
-          log_error ("can't get keygrip from ");
-          for (j=0; j < keyinfo->pathlen; j++)
-            log_printf ("%04hX", keyinfo->path[j]);
+          log_error ("p15: error getting keygrip from ");
+          for (j=0; j < prkdf->pathlen; j++)
+            log_printf ("%s%04hX", j?"/":"", prkdf->path[j]);
           log_printf (": %s\n", gpg_strerror (err));
         }
       else
         {
-          assert (strlen (gripstr) == 40);
+          char usage[5];
+          size_t usagelen = 0;
+
+          if (prkdf->usageflags.sign
+              || prkdf->usageflags.sign_recover
+              || prkdf->usageflags.non_repudiation)
+            usage[usagelen++] = 's';
+          if (prkdf->usageflags.sign
+              || prkdf->usageflags.sign_recover)
+            usage[usagelen++] = 'c';
+          if (prkdf->usageflags.decrypt
+              || prkdf->usageflags.unwrap)
+            usage[usagelen++] = 'e';
+          if (prkdf->usageflags.sign
+              || prkdf->usageflags.sign_recover)
+            usage[usagelen++] = 'a';
+
+          log_assert (strlen (prkdf->keygrip) == 40);
           send_status_info (ctrl, "KEYPAIRINFO",
-                            gripstr, 40,
+                            prkdf->keygrip, 2*KEYGRIP_LEN,
                             buf, strlen (buf),
+                            usage, usagelen,
                             NULL, (size_t)0);
         }
       xfree (buf);
@@ -2500,7 +2861,10 @@ do_learn_status (app_t app, ctrl_t ctrl, unsigned int flags)
     err = 0;
   else
     {
-      err = send_certinfo (app, ctrl, "100", app->app_local->certificate_info);
+      err = do_getattr (app, ctrl, "MANUFACTURER");
+      if (!err)
+        err = send_certinfo (app, ctrl, "100",
+                             app->app_local->certificate_info);
       if (!err)
         err = send_certinfo (app, ctrl, "101",
                              app->app_local->trusted_certificate_info);
@@ -2553,14 +2917,18 @@ readcert_by_cdf (app_t app, cdf_object_t cdf,
   if (err)
     goto leave;
 
-  err = iso7816_read_binary (app->slot, cdf->off, cdf->len, &buffer, &buflen);
+  err = iso7816_read_binary_ext (app_get_slot (app), 1, cdf->off, cdf->len,
+                                 &buffer, &buflen);
   if (!err && (!buflen || *buffer == 0xff))
     err = gpg_error (GPG_ERR_NOT_FOUND);
   if (err)
     {
-      log_error ("error reading certificate with Id ");
+      log_error ("p15: error reading certificate id=");
       for (i=0; i < cdf->objidlen; i++)
         log_printf ("%02X", cdf->objid[i]);
+      log_printf (" at ");
+      for (i=0; i < cdf->pathlen; i++)
+        log_printf ("%s%04hX", i? "/":"", cdf->path[i]);
       log_printf (": %s\n", gpg_strerror (err));
       goto leave;
     }
@@ -2666,37 +3034,42 @@ static gpg_error_t
 do_getattr (app_t app, ctrl_t ctrl, const char *name)
 {
   gpg_error_t err;
+  prkdf_object_t prkdf;
 
-  if (!strcmp (name, "$AUTHKEYID"))
+  if (!strcmp (name, "$AUTHKEYID")
+      || !strcmp (name, "$ENCRKEYID")
+      || !strcmp (name, "$SIGNKEYID"))
     {
-      char *buf, *p;
-      prkdf_object_t prkdf;
+      char *buf;
 
-      /* We return the ID of the first private keycapable of
-         signing. */
+      /* We return the ID of the first private key capable of the
+       * requested action.  Note that we do not yet return
+       * non_repudiation keys for $SIGNKEYID because our D-Trust
+       * testcard uses rsaPSS, which is not supported by gpgsm and not
+       * covered by the VS-NfD approval.  */
       for (prkdf = app->app_local->private_key_info; prkdf;
            prkdf = prkdf->next)
-        if (prkdf->usageflags.sign)
-          break;
+        {
+          if (name[1] == 'A' && (prkdf->usageflags.sign
+                                 || prkdf->usageflags.sign_recover))
+            break;
+          else if (name[1] == 'E' && (prkdf->usageflags.decrypt
+                                      || prkdf->usageflags.unwrap))
+            break;
+          else if (name[1] == 'S' && (prkdf->usageflags.sign
+                                      || prkdf->usageflags.sign_recover))
+            break;
+        }
       if (prkdf)
         {
-          buf = xtrymalloc (9 + prkdf->objidlen*2 + 1);
+          buf = keyref_from_prkdf (app, prkdf);
           if (!buf)
             return gpg_error_from_syserror ();
-          p = stpcpy (buf, "P15");
-          if (app->app_local->home_df)
-            {
-              snprintf (p, 6, "-%04X",
-                        (unsigned int)(app->app_local->home_df & 0xffff));
-              p += 5;
-            }
-          p = stpcpy (p, ".");
-          bin2hex (prkdf->objid, prkdf->objidlen, p);
 
           send_status_info (ctrl, name, buf, strlen (buf), NULL, 0);
           xfree (buf);
-          return 0;
         }
+      return 0;
     }
   else if (!strcmp (name, "$DISPSERIALNO"))
     {
@@ -2716,7 +3089,8 @@ do_getattr (app_t app, ctrl_t ctrl, const char *name)
             err = iso7816_read_binary (app->slot, 0, 0, &buffer, &buflen);
           if (err)
             {
-              log_error ("error accessing EF(ID): %s\n", gpg_strerror (err));
+              log_error ("p15: error accessing EF(ID): %s\n",
+                         gpg_strerror (err));
               return err;
             }
 
@@ -2736,7 +3110,41 @@ do_getattr (app_t app, ctrl_t ctrl, const char *name)
             }
           xfree (buffer);
         }
-
+      else
+        {
+          /* We use the first private key object which has a serial
+           * number set.  If none was found, we parse the first
+           * object and see whether this has then a serial number.  */
+          for (prkdf = app->app_local->private_key_info; prkdf;
+               prkdf = prkdf->next)
+            if (prkdf->serial_number)
+              break;
+          if (!prkdf && app->app_local->private_key_info)
+            {
+              prkdf = app->app_local->private_key_info;
+              keygrip_from_prkdf (app, prkdf);
+              if (!prkdf->serial_number)
+                prkdf = NULL;
+            }
+          if (prkdf)
+            {
+              char *sn = get_dispserialno (app, prkdf);
+              /* Unless there is a bogus S/N in the cert we should
+               * have a suitable one from the cert here now.  */
+              err = send_status_printf (ctrl, name, "%s", sn);
+              xfree (sn);
+              return err;
+            }
+        }
+      /* No abbreviated serial number. */
+    }
+  else if (!strcmp (name, "MANUFACTURER"))
+    {
+      if (app->app_local->manufacturer_id)
+        return send_status_printf (ctrl, "MANUFACTURER", "0 %s",
+                                   app->app_local->manufacturer_id);
+      else
+        return 0;
     }
   return gpg_error (GPG_ERR_INV_NAME);
 }
@@ -2761,7 +3169,7 @@ micardo_mse (app_t app, unsigned short fid)
   err = iso7816_select_file (app->slot, 0x0013, 0);
   if (err)
     {
-      log_error ("error reading EF_keyD: %s\n", gpg_strerror (err));
+      log_error ("p15: error reading EF_keyD: %s\n", gpg_strerror (err));
       return err;
     }
 
@@ -2777,11 +3185,15 @@ micardo_mse (app_t app, unsigned short fid)
         break; /* ready */
       if (err)
         {
-          log_error ("error reading EF_keyD record: %s\n",
+          log_error ("p15: error reading EF_keyD record: %s\n",
                      gpg_strerror (err));
           return err;
         }
-      log_printhex ("keyD record:", buffer, buflen);
+      if (opt.verbose)
+        {
+          log_info (buffer, buflen, "p15: keyD record: ");
+          log_printhex (buffer, buflen, "");
+        }
       p = find_tlv (buffer, buflen, 0x83, &n);
       if (p && n == 4 && ((p[2]<<8)|p[3]) == fid)
         {
@@ -2803,7 +3215,7 @@ micardo_mse (app_t app, unsigned short fid)
     }
   if (se_num == -1)
     {
-      log_error ("CRT for keyfile %04hX not found\n", fid);
+      log_error ("p15: CRT for keyfile %04hX not found\n", fid);
       return gpg_error (GPG_ERR_NOT_FOUND);
     }
 
@@ -2814,7 +3226,7 @@ micardo_mse (app_t app, unsigned short fid)
       err = iso7816_manage_security_env (app->slot, 0xf3, se_num, NULL, 0);
       if (err)
         {
-          log_error ("restoring SE to %d failed: %s\n",
+          log_error ("p15: restoring SE to %d failed: %s\n",
                      se_num, gpg_strerror (err));
           return err;
         }
@@ -2829,12 +3241,378 @@ micardo_mse (app_t app, unsigned short fid)
   err = iso7816_manage_security_env (app->slot, 0x41, 0xb6, msebuf, 5);
   if (err)
     {
-      log_error ("setting SE to reference file %04hX failed: %s\n",
+      log_error ("p15: setting SE to reference file %04hX failed: %s\n",
                  refdata, gpg_strerror (err));
       return err;
     }
   return 0;
 }
+
+
+
+/* Prepare the verification of the PIN for the key PRKDF by checking
+ * the AODF and selecting the key file.  KEYREF is used for error
+ * messages.  */
+static gpg_error_t
+prepare_verify_pin (app_t app, const char *keyref,
+                    prkdf_object_t prkdf, aodf_object_t aodf)
+{
+  gpg_error_t err;
+  int i;
+
+  if (opt.verbose)
+    {
+      log_info ("p15: using AODF %04hX id=", aodf->fid);
+      for (i=0; i < aodf->objidlen; i++)
+        log_printf ("%02X", aodf->objid[i]);
+      log_printf ("\n");
+    }
+
+  if (aodf->authid && opt.verbose)
+    log_info ("p15: PIN is controlled by another authentication token\n");
+
+  if (aodf->pinflags.integrity_protected
+      || aodf->pinflags.confidentiality_protected)
+    {
+      log_error ("p15: "
+                 "PIN verification requires unsupported protection method\n");
+      return gpg_error (GPG_ERR_BAD_PIN_METHOD);
+    }
+  if (!aodf->stored_length && aodf->pinflags.needs_padding)
+    {
+      log_error ("p15: "
+                 "PIN verification requires padding but no length known\n");
+      return gpg_error (GPG_ERR_INV_CARD);
+    }
+
+
+  if (app->app_local->card_product == CARD_PRODUCT_DTRUST)
+    {
+      /* According to our protocol analysis we need to select a
+       * special AID here.  Before that the master file needs to be
+       * selected.  (RID A000000167 is assigned to IBM) */
+      static char const dtrust_aid[] =
+        { 0xA0, 0x00, 0x00, 0x01, 0x67, 0x45, 0x53, 0x49, 0x47, 0x4E };
+
+      err = iso7816_select_mf (app_get_slot (app));
+      if (!err)
+        err = iso7816_select_application (app_get_slot (app),
+                                          dtrust_aid, sizeof dtrust_aid, 0);
+      if (err)
+        log_error ("p15: error selecting D-TRUST's AID for key %s: %s\n",
+                   keyref, gpg_strerror (err));
+    }
+  else
+    {
+      /* Standard case: Select the key file.  Note that this may
+       * change the security environment thus we need to do it before
+       * PIN verification. */
+      err = select_ef_by_path (app, prkdf->path, prkdf->pathlen);
+      if (err)
+        log_error ("p15: error selecting file for key %s: %s\n",
+                   keyref, gpg_strerror (err));
+    }
+
+  return err;
+}
+
+
+static int
+any_control_or_space (const char *string)
+{
+  const unsigned char *s;
+
+  for (s = string; *string; string++)
+    if (*s <= 0x20 || *s >= 0x7f)
+      return 1;
+  return 0;
+}
+
+
+/* Return a malloced serial number to be shown to the user.  PRKDF is
+ * used to get it from a certificate; PRKDF may be NULL.  */
+static char *
+get_dispserialno (app_t app, prkdf_object_t prkdf)
+{
+  char *serial;
+
+  /* We prefer the SerialNumber RDN from the Subject-DN but we don't
+   * use it if it features a percent sign (special character in pin
+   * prompts) or has any control character.  */
+  if (prkdf && prkdf->serial_number && *prkdf->serial_number
+      && !strchr (prkdf->serial_number, '%')
+      && !any_control_or_space (prkdf->serial_number))
+    {
+      serial = xtrystrdup (prkdf->serial_number);
+    }
+  else
+    {
+      serial = app_get_serialno (app);
+    }
+  return serial;
+}
+
+
+/* Return an allocated string to be used as prompt.  Returns NULL on
+ * malloc error.  */
+static char *
+make_pin_prompt (app_t app, int remaining, const char *firstline,
+                 prkdf_object_t prkdf)
+{
+  char *serial, *tmpbuf, *result;
+
+  serial = get_dispserialno (app, prkdf);
+
+  /* TRANSLATORS: Put a \x1f right before a colon.  This can be
+   * used by pinentry to nicely align the names and values.  Keep
+   * the %s at the start and end of the string.  */
+  result = xtryasprintf (_("%s"
+                           "Number\x1f: %s%%0A"
+                           "Holder\x1f: %s"
+                           "%s"),
+                         "\x1e",
+                         serial,
+                         prkdf->common_name? prkdf->common_name: "",
+                         "");
+  xfree (serial);
+  if (!result)
+    return NULL; /* Out of core.  */
+
+  /* Append a "remaining attempts" info if needed.  */
+  if (remaining != -1 && remaining < 3)
+    {
+      char *rembuf;
+
+      /* TRANSLATORS: This is the number of remaining attempts to
+       * enter a PIN.  Use %%0A (double-percent,0A) for a linefeed. */
+      rembuf = xtryasprintf (_("Remaining attempts: %d"), remaining);
+      if (rembuf)
+        {
+          tmpbuf = strconcat (firstline, "%0A%0A", result,
+                              "%0A%0A", rembuf, NULL);
+          xfree (rembuf);
+        }
+      else
+        tmpbuf = NULL;
+      xfree (result);
+      result = tmpbuf;
+    }
+  else
+    {
+      tmpbuf = strconcat (firstline, "%0A%0A", result, NULL);
+      xfree (result);
+      result = tmpbuf;
+    }
+
+  return result;
+}
+
+
+/* Given the private key object PRKDF and its authentication object
+ * AODF ask for the PIN and verify that PIN.  */
+static gpg_error_t
+verify_pin (app_t app,
+            gpg_error_t (*pincb)(void*, const char *, char **), void *pincb_arg,
+            prkdf_object_t prkdf, aodf_object_t aodf)
+{
+  gpg_error_t err;
+  char *pinvalue;
+  size_t pinvaluelen;
+  const char *label;
+  const char *errstr;
+  const char *s;
+  int remaining;
+  int pin_reference;
+  int i;
+
+  if (!aodf)
+    return 0;
+
+  pin_reference = aodf->pin_reference_valid? aodf->pin_reference : 0;
+
+  if (app->app_local->card_type == CARD_TYPE_CARDOS_50)
+    {
+      /* We know that this card supports a verify status check.  Note
+       * that in contrast to PIV cards ISO7816_VERIFY_NOT_NEEDED is
+       * not supported.  */
+      remaining = iso7816_verify_status (app_get_slot (app), pin_reference);
+      if (remaining < 0)
+        remaining = -1; /* We don't care about the concrete error.  */
+      if (remaining < 3)
+        {
+          if (remaining >= 0)
+            log_info ("p15: PIN has %d attempts left\n", remaining);
+          /* On error or if less than 3 better ask. */
+          prkdf->pin_verified = 0;
+        }
+    }
+  else
+    remaining = -1;  /* Unknown.  */
+
+  /* Check whether we already verified it.  */
+  if (prkdf->pin_verified)
+    return 0;  /* Already done.  */
+
+  if (prkdf->usageflags.non_repudiation
+      && (app->app_local->card_type == CARD_TYPE_BELPIC
+          || app->app_local->card_product == CARD_PRODUCT_DTRUST))
+    label = _("||Please enter the PIN for the key to create "
+              "qualified signatures.");
+  else
+    label = _("||Please enter the PIN for the standard keys.");
+
+  {
+    char *prompt = make_pin_prompt (app, remaining, label, prkdf);
+    if (!prompt)
+      err = gpg_error_from_syserror ();
+    else
+      err = pincb (pincb_arg, prompt, &pinvalue);
+    xfree (prompt);
+  }
+  if (err)
+    {
+      log_info ("p15: PIN callback returned error: %s\n", gpg_strerror (err));
+      return err;
+    }
+
+  /* We might need to cope with UTF8 things here.  Not sure how
+     min_length etc. are exactly defined, for now we take them as
+     a plain octet count. */
+  if (strlen (pinvalue) < aodf->min_length)
+    {
+      log_error ("p15: PIN is too short; minimum length is %lu\n",
+                 aodf->min_length);
+      err = gpg_error (GPG_ERR_BAD_PIN);
+    }
+  else if (aodf->stored_length && strlen (pinvalue) > aodf->stored_length)
+    {
+      /* This would otherwise truncate the PIN silently. */
+      log_error ("p15: PIN is too large; maximum length is %lu\n",
+                 aodf->stored_length);
+      err = gpg_error (GPG_ERR_BAD_PIN);
+    }
+  else if (aodf->max_length_valid && strlen (pinvalue) > aodf->max_length)
+    {
+      log_error ("p15: PIN is too large; maximum length is %lu\n",
+                 aodf->max_length);
+      err = gpg_error (GPG_ERR_BAD_PIN);
+    }
+
+  if (err)
+    {
+      xfree (pinvalue);
+      return err;
+    }
+
+  errstr = NULL;
+  err = 0;
+  switch (aodf->pintype)
+    {
+    case PIN_TYPE_BCD:
+    case PIN_TYPE_ASCII_NUMERIC:
+      for (s=pinvalue; digitp (s); s++)
+        ;
+      if (*s)
+        {
+          errstr = "Non-numeric digits found in PIN";
+          err = gpg_error (GPG_ERR_BAD_PIN);
+        }
+      break;
+    case PIN_TYPE_UTF8:
+      break;
+    case PIN_TYPE_HALF_NIBBLE_BCD:
+      errstr = "PIN type Half-Nibble-BCD is not supported";
+      break;
+    case PIN_TYPE_ISO9564_1:
+      errstr = "PIN type ISO9564-1 is not supported";
+      break;
+    default:
+      errstr = "Unknown PIN type";
+      break;
+    }
+  if (errstr)
+    {
+      log_error ("p15: can't verify PIN: %s\n", errstr);
+      xfree (pinvalue);
+      return err? err : gpg_error (GPG_ERR_BAD_PIN_METHOD);
+    }
+
+
+  if (aodf->pintype == PIN_TYPE_BCD )
+    {
+      char *paddedpin;
+      int ndigits;
+
+      for (ndigits=0, s=pinvalue; *s; ndigits++, s++)
+        ;
+      paddedpin = xtrymalloc (aodf->stored_length+1);
+      if (!paddedpin)
+        {
+          err = gpg_error_from_syserror ();
+          xfree (pinvalue);
+          return err;
+        }
+
+      i = 0;
+      paddedpin[i++] = 0x20 | (ndigits & 0x0f);
+      for (s=pinvalue; i < aodf->stored_length && *s && s[1]; s = s+2 )
+        paddedpin[i++] = (((*s - '0') << 4) | ((s[1] - '0') & 0x0f));
+      if (i < aodf->stored_length && *s)
+        paddedpin[i++] = (((*s - '0') << 4)
+                          |((aodf->pad_char_valid?aodf->pad_char:0)&0x0f));
+
+      if (aodf->pinflags.needs_padding)
+        {
+          while (i < aodf->stored_length)
+            paddedpin[i++] = aodf->pad_char_valid? aodf->pad_char : 0;
+        }
+
+      xfree (pinvalue);
+      pinvalue = paddedpin;
+      pinvaluelen = i;
+    }
+  else if (aodf->pinflags.needs_padding)
+    {
+      char *paddedpin;
+
+      paddedpin = xtrymalloc (aodf->stored_length+1);
+      if (!paddedpin)
+        {
+          err = gpg_error_from_syserror ();
+          xfree (pinvalue);
+          return err;
+        }
+      for (i=0, s=pinvalue; i < aodf->stored_length && *s; i++, s++)
+        paddedpin[i] = *s;
+      /* Not sure what padding char to use if none has been set.
+         For now we use 0x00; maybe a space would be better. */
+      for (; i < aodf->stored_length; i++)
+        paddedpin[i] = aodf->pad_char_valid? aodf->pad_char : 0;
+      paddedpin[i] = 0;
+      pinvaluelen = i;
+      xfree (pinvalue);
+      pinvalue = paddedpin;
+    }
+  else
+    pinvaluelen = strlen (pinvalue);
+
+  /* log_printhex (pinvalue, pinvaluelen, */
+  /*               "about to verify with ref %lu pin:", pin_reference); */
+  err = iso7816_verify (app_get_slot (app), pin_reference,
+                        pinvalue, pinvaluelen);
+  xfree (pinvalue);
+  if (err)
+    {
+      log_error ("p15: PIN verification failed: %s\n", gpg_strerror (err));
+      return err;
+    }
+  if (opt.verbose)
+    log_info ("p15: PIN verification succeeded\n");
+  prkdf->pin_verified = 1;
+
+  return 0;
+}
+
 
 
 
@@ -2851,6 +3629,9 @@ do_sign (app_t app, const char *keyidstr, int hashalgo,
          const void *indata, size_t indatalen,
          unsigned char **outdata, size_t *outdatalen )
 {
+  static unsigned char sha256_prefix[19] = /* OID: 2.16.840.1.101.3.4.2.1 */
+    { 0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48,
+      0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20 };
   static unsigned char sha1_prefix[15] = /* Object ID is 1.3.14.3.2.26 */
     { 0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03,
       0x02, 0x1a, 0x05, 0x00, 0x04, 0x14 };
@@ -2859,18 +3640,24 @@ do_sign (app_t app, const char *keyidstr, int hashalgo,
       0x02, 0x01, 0x05, 0x00, 0x04, 0x14 };
 
   gpg_error_t err;
-  int i;
-  unsigned char data[36];   /* Must be large enough for a SHA-1 digest
-                               + the largest OID prefix above and also
-                               fit the 36 bytes of md5sha1.  */
+  unsigned char data[32+19]; /* Must be large enough for a SHA-256 digest
+                              * + the largest OID prefix above and also
+                              * fit the 36 bytes of md5sha1.  */
   prkdf_object_t prkdf;    /* The private key object. */
   aodf_object_t aodf;      /* The associated authentication object. */
   int no_data_padding = 0; /* True if the card want the data without padding.*/
   int mse_done = 0;        /* Set to true if the MSE has been done. */
+  unsigned int hashlen;    /* Length of the hash.  */
+  unsigned int datalen;    /* Length of the data to sign (prefix+hash).  */
+  unsigned char *dataptr;
+  int exmode, le_value;
+
 
   if (!keyidstr || !*keyidstr)
     return gpg_error (GPG_ERR_INV_VALUE);
-  if (indatalen != 20 && indatalen != 16 && indatalen != 35 && indatalen != 36)
+  if (indatalen != 20 && indatalen != 16
+      && indatalen != 35 && indatalen != 36
+      && indatalen != (32+19))
     return gpg_error (GPG_ERR_INV_VALUE);
 
   err = prkdf_object_from_keyidstr (app, keyidstr, &prkdf);
@@ -2879,13 +3666,13 @@ do_sign (app_t app, const char *keyidstr, int hashalgo,
   if (!(prkdf->usageflags.sign || prkdf->usageflags.sign_recover
         ||prkdf->usageflags.non_repudiation))
     {
-      log_error ("key %s may not be used for signing\n", keyidstr);
+      log_error ("p15: key %s may not be used for signing\n", keyidstr);
       return gpg_error (GPG_ERR_WRONG_KEY_USAGE);
     }
 
   if (!prkdf->authid)
     {
-      log_error ("no authentication object defined for %s\n", keyidstr);
+      log_error ("p15: no authentication object defined for %s\n", keyidstr);
       /* fixme: we might want to go ahead and do without PIN
          verification. */
       return gpg_error (GPG_ERR_UNSUPPORTED_OPERATION);
@@ -2898,37 +3685,25 @@ do_sign (app_t app, const char *keyidstr, int hashalgo,
       break;
   if (!aodf)
     {
-      log_error ("authentication object for %s missing\n", keyidstr);
-      return gpg_error (GPG_ERR_INV_CARD);
-    }
-  if (aodf->authid)
-    {
-      log_error ("PIN verification is protected by an "
-                 "additional authentication token\n");
-      return gpg_error (GPG_ERR_BAD_PIN_METHOD);
-    }
-  if (aodf->pinflags.integrity_protected
-      || aodf->pinflags.confidentiality_protected)
-    {
-      log_error ("PIN verification requires unsupported protection method\n");
-      return gpg_error (GPG_ERR_BAD_PIN_METHOD);
-    }
-  if (!aodf->stored_length && aodf->pinflags.needs_padding)
-    {
-      log_error ("PIN verification requires padding but no length known\n");
+      log_error ("p15: authentication object for %s missing\n", keyidstr);
       return gpg_error (GPG_ERR_INV_CARD);
     }
 
-  /* Select the key file.  Note that this may change the security
-     environment thus we do it before PIN verification. */
-  err = select_ef_by_path (app, prkdf->path, prkdf->pathlen);
+  /* We need some more info about the key - get the keygrip to
+   * populate these fields.  */
+  err = keygrip_from_prkdf (app, prkdf);
   if (err)
     {
-      log_error ("error selecting file for key %s: %s\n",
-                 keyidstr, gpg_strerror (errno));
+      log_error ("p15: keygrip_from_prkdf failed: %s\n", gpg_strerror (err));
       return err;
     }
 
+  /* Prepare PIN verification.  This is split so that we can do
+   * MSE operation for some task after having selected the key file but
+   * before sending the verify APDU.  */
+  err = prepare_verify_pin (app, keyidstr, prkdf, aodf);
+  if (err)
+    return err;
 
   /* Due to the fact that the non-repudiation signature on a BELPIC
      card requires a verify immediately before the DSO we set the
@@ -2956,162 +3731,16 @@ do_sign (app_t app, const char *keyidstr, int hashalgo,
     }
   if (err)
     {
-      log_error ("MSE failed: %s\n", gpg_strerror (err));
+      log_error ("p15: MSE failed: %s\n", gpg_strerror (err));
       return err;
     }
 
+  /* Now that we have all the information available run the actual PIN
+   * verification.*/
+  err = verify_pin (app, pincb, pincb_arg, prkdf, aodf);
+  if (err)
+    return err;
 
-  /* Now that we have all the information available, prepare and run
-     the PIN verification.*/
-  if (1)
-    {
-      char *pinvalue;
-      size_t pinvaluelen;
-      const char *errstr;
-      const char *s;
-
-      if (prkdf->usageflags.non_repudiation
-          && app->app_local->card_type == CARD_TYPE_BELPIC)
-        err = pincb (pincb_arg, "PIN (qualified signature!)", &pinvalue);
-      else
-        err = pincb (pincb_arg, "PIN", &pinvalue);
-      if (err)
-        {
-          log_info ("PIN callback returned error: %s\n", gpg_strerror (err));
-          return err;
-        }
-
-      /* We might need to cope with UTF8 things here.  Not sure how
-         min_length etc. are exactly defined, for now we take them as
-         a plain octet count. */
-
-      if (strlen (pinvalue) < aodf->min_length)
-        {
-          log_error ("PIN is too short; minimum length is %lu\n",
-                     aodf->min_length);
-          err = gpg_error (GPG_ERR_BAD_PIN);
-        }
-      else if (aodf->stored_length && strlen (pinvalue) > aodf->stored_length)
-        {
-          /* This would otherwise truncate the PIN silently. */
-          log_error ("PIN is too large; maximum length is %lu\n",
-                     aodf->stored_length);
-          err = gpg_error (GPG_ERR_BAD_PIN);
-        }
-      else if (aodf->max_length_valid && strlen (pinvalue) > aodf->max_length)
-        {
-          log_error ("PIN is too large; maximum length is %lu\n",
-                     aodf->max_length);
-          err = gpg_error (GPG_ERR_BAD_PIN);
-        }
-
-      if (err)
-        {
-          xfree (pinvalue);
-          return err;
-        }
-
-      errstr = NULL;
-      err = 0;
-      switch (aodf->pintype)
-        {
-        case PIN_TYPE_BCD:
-        case PIN_TYPE_ASCII_NUMERIC:
-          for (s=pinvalue; digitp (s); s++)
-            ;
-          if (*s)
-            {
-              errstr = "Non-numeric digits found in PIN";
-              err = gpg_error (GPG_ERR_BAD_PIN);
-            }
-          break;
-        case PIN_TYPE_UTF8:
-          break;
-        case PIN_TYPE_HALF_NIBBLE_BCD:
-          errstr = "PIN type Half-Nibble-BCD is not supported";
-          break;
-        case PIN_TYPE_ISO9564_1:
-          errstr = "PIN type ISO9564-1 is not supported";
-          break;
-        default:
-          errstr = "Unknown PIN type";
-          break;
-        }
-      if (errstr)
-        {
-          log_error ("can't verify PIN: %s\n", errstr);
-          xfree (pinvalue);
-          return err? err : gpg_error (GPG_ERR_BAD_PIN_METHOD);
-        }
-
-
-      if (aodf->pintype == PIN_TYPE_BCD )
-        {
-          char *paddedpin;
-          int ndigits;
-
-          for (ndigits=0, s=pinvalue; *s; ndigits++, s++)
-            ;
-          paddedpin = xtrymalloc (aodf->stored_length+1);
-          if (!paddedpin)
-            {
-              err = gpg_error_from_syserror ();
-              xfree (pinvalue);
-              return err;
-            }
-
-          i = 0;
-          paddedpin[i++] = 0x20 | (ndigits & 0x0f);
-          for (s=pinvalue; i < aodf->stored_length && *s && s[1]; s = s+2 )
-            paddedpin[i++] = (((*s - '0') << 4) | ((s[1] - '0') & 0x0f));
-          if (i < aodf->stored_length && *s)
-            paddedpin[i++] = (((*s - '0') << 4)
-                              |((aodf->pad_char_valid?aodf->pad_char:0)&0x0f));
-
-          if (aodf->pinflags.needs_padding)
-            while (i < aodf->stored_length)
-              paddedpin[i++] = aodf->pad_char_valid? aodf->pad_char : 0;
-
-          xfree (pinvalue);
-          pinvalue = paddedpin;
-          pinvaluelen = i;
-        }
-      else if (aodf->pinflags.needs_padding)
-        {
-          char *paddedpin;
-
-          paddedpin = xtrymalloc (aodf->stored_length+1);
-          if (!paddedpin)
-            {
-              err = gpg_error_from_syserror ();
-              xfree (pinvalue);
-              return err;
-            }
-          for (i=0, s=pinvalue; i < aodf->stored_length && *s; i++, s++)
-            paddedpin[i] = *s;
-          /* Not sure what padding char to use if none has been set.
-             For now we use 0x00; maybe a space would be better. */
-          for (; i < aodf->stored_length; i++)
-            paddedpin[i] = aodf->pad_char_valid? aodf->pad_char : 0;
-          paddedpin[i] = 0;
-          pinvaluelen = i;
-          xfree (pinvalue);
-          pinvalue = paddedpin;
-        }
-      else
-        pinvaluelen = strlen (pinvalue);
-
-      err = iso7816_verify (app->slot,
-                            aodf->pin_reference_valid? aodf->pin_reference : 0,
-                            pinvalue, pinvaluelen);
-      xfree (pinvalue);
-      if (err)
-        {
-          log_error ("PIN verification failed: %s\n", gpg_strerror (err));
-          return err;
-        }
-      log_debug ("PIN verification succeeded\n");
-    }
 
   /* Prepare the DER object from INDATA. */
   if (indatalen == 36)
@@ -3120,6 +3749,7 @@ do_sign (app_t app, const char *keyidstr, int hashalgo,
       if (hashalgo != MD_USER_TLS_MD5SHA1)
         return gpg_error (GPG_ERR_UNSUPPORTED_ALGORITHM);
       memcpy (data, indata, indatalen);
+      datalen = hashlen = 36;
     }
   else if (indatalen == 35)
     {
@@ -3134,20 +3764,50 @@ do_sign (app_t app, const char *keyidstr, int hashalgo,
       else
         return gpg_error (GPG_ERR_UNSUPPORTED_ALGORITHM);
       memcpy (data, indata, indatalen);
+      datalen = 35;
+      hashlen = 20;
+    }
+  else if (indatalen == 32 + 19)
+    {
+      /* Seems to be a prepared SHA256 DER object.  */
+      if (hashalgo == GCRY_MD_SHA256 && !memcmp (indata, sha256_prefix, 19))
+        ;
+      else
+        return gpg_error (GPG_ERR_UNSUPPORTED_ALGORITHM);
+      memcpy (data, indata, indatalen);
+      datalen = 51;
+      hashlen = 32;
     }
   else
     {
       /* Need to prepend the prefix. */
-      if (hashalgo == GCRY_MD_SHA1)
-        memcpy (data, sha1_prefix, 15);
+      if (hashalgo == GCRY_MD_SHA256)
+        {
+          memcpy (data, sha256_prefix, 19);
+          memcpy (data+19, indata, indatalen);
+          datalen = 51;
+          hashlen = 32;
+        }
+      else if (hashalgo == GCRY_MD_SHA1)
+        {
+          memcpy (data, sha1_prefix, 15);
+          memcpy (data+15, indata, indatalen);
+          datalen = 35;
+          hashlen = 20;
+        }
       else if (hashalgo == GCRY_MD_RMD160)
-        memcpy (data, rmd160_prefix, 15);
+        {
+          memcpy (data, rmd160_prefix, 15);
+          memcpy (data+15, indata, indatalen);
+          datalen = 35;
+          hashlen = 20;
+        }
       else
         return gpg_error (GPG_ERR_UNSUPPORTED_ALGORITHM);
-      memcpy (data+15, indata, indatalen);
     }
 
-  /* Manage security environment needs to be weaked for certain cards. */
+
+  /* Manage security environment needs to be tweaked for certain cards. */
   if (mse_done)
     err = 0;
   else if (app->app_local->card_type == CARD_TYPE_TCOS)
@@ -3176,16 +3836,32 @@ do_sign (app_t app, const char *keyidstr, int hashalgo,
     }
   if (err)
     {
-      log_error ("MSE failed: %s\n", gpg_strerror (err));
+      log_error ("p15: MSE failed: %s\n", gpg_strerror (err));
       return err;
     }
 
-  if (hashalgo == MD_USER_TLS_MD5SHA1)
-    err = iso7816_compute_ds (app->slot, 0, data, 36, 0, outdata, outdatalen);
-  else if (no_data_padding)
-    err = iso7816_compute_ds (app->slot, 0, data+15, 20, 0,outdata,outdatalen);
+  dataptr = data;
+  if (no_data_padding)
+    {
+      dataptr += datalen - hashlen;
+      datalen = hashlen;
+    }
+
+  if (prkdf->keyalgo == GCRY_PK_RSA && prkdf->keynbits > 2048)
+    {
+      exmode = 1;
+      le_value = prkdf->keynbits / 8;
+    }
   else
-    err = iso7816_compute_ds (app->slot, 0, data, 35, 0, outdata, outdatalen);
+    {
+      exmode = 0;
+      le_value = 0;
+    }
+
+  err = iso7816_compute_ds (app_get_slot (app),
+                            exmode, dataptr, datalen,
+                            le_value, outdata, outdatalen);
+
   return err;
 }
 
@@ -3215,13 +3891,141 @@ do_auth (app_t app, const char *keyidstr,
     return err;
   if (!prkdf->usageflags.sign)
     {
-      log_error ("key %s may not be used for authentication\n", keyidstr);
+      log_error ("p15: key %s may not be used for authentication\n", keyidstr);
       return gpg_error (GPG_ERR_WRONG_KEY_USAGE);
     }
 
   algo = indatalen == 36? MD_USER_TLS_MD5SHA1 : GCRY_MD_SHA1;
   return do_sign (app, keyidstr, algo, pincb, pincb_arg,
                   indata, indatalen, outdata, outdatalen);
+}
+
+
+/* Handler for the PKDECRYPT command.  Decrypt the data in INDATA and
+ * return the allocated result in OUTDATA.  If a PIN is required the
+ * PINCB will be used to ask for the PIN; it should return the PIN in
+ * an allocated buffer and put it into PIN.  */
+static gpg_error_t
+do_decipher (app_t app, const char *keyidstr,
+             gpg_error_t (*pincb)(void*, const char *, char **),
+             void *pincb_arg,
+             const void *indata, size_t indatalen,
+             unsigned char **outdata, size_t *outdatalen,
+             unsigned int *r_info)
+{
+  gpg_error_t err;
+  prkdf_object_t prkdf;    /* The private key object. */
+  aodf_object_t aodf;      /* The associated authentication object. */
+  int exmode, le_value, padind;
+
+  (void)r_info;
+
+  if (!keyidstr || !*keyidstr)
+    return gpg_error (GPG_ERR_INV_VALUE);
+  if (!indatalen || !indata || !outdatalen || !outdata)
+    return gpg_error (GPG_ERR_INV_ARG);
+
+  err = prkdf_object_from_keyidstr (app, keyidstr, &prkdf);
+  if (err)
+    return err;
+  if (!(prkdf->usageflags.decrypt || prkdf->usageflags.unwrap))
+    {
+      log_error ("p15: key %s may not be used for decruption\n", keyidstr);
+      return gpg_error (GPG_ERR_WRONG_KEY_USAGE);
+    }
+
+  /* Find the authentication object to this private key object. */
+  if (!prkdf->authid)
+    {
+      log_error ("p15: no authentication object defined for %s\n", keyidstr);
+      /* fixme: we might want to go ahead and do without PIN
+         verification. */
+      return gpg_error (GPG_ERR_UNSUPPORTED_OPERATION);
+    }
+  for (aodf = app->app_local->auth_object_info; aodf; aodf = aodf->next)
+    if (aodf->objidlen == prkdf->authidlen
+        && !memcmp (aodf->objid, prkdf->authid, prkdf->authidlen))
+      break;
+  if (!aodf)
+    {
+      log_error ("p15: authentication object for %s missing\n", keyidstr);
+      return gpg_error (GPG_ERR_INV_CARD);
+    }
+
+  /* We need some more info about the key - get the keygrip to
+   * populate these fields.  */
+  err = keygrip_from_prkdf (app, prkdf);
+  if (err)
+    {
+      log_error ("p15: keygrip_from_prkdf failed: %s\n", gpg_strerror (err));
+      return err;
+    }
+
+  /* Verify the PIN.  */
+  err = prepare_verify_pin (app, keyidstr, prkdf, aodf);
+  if (!err)
+    err = verify_pin (app, pincb, pincb_arg, prkdf, aodf);
+  if (err)
+    return err;
+
+
+  /* The next is guess work for CardOS.  */
+  if (app->app_local->card_product == CARD_PRODUCT_DTRUST)
+    {
+      /* From analyzing an USB trace of a Windows signing application
+       * we see that the SE is simply reset to 0x14.  It seems to be
+       * sufficient to do this for decryption; signing still works
+       * with the standard code despite that our trace showed that
+       * there the SE is restored to 0x09.  Note that the special
+       * D-Trust AID is in any case select by prepare_verify_pin.
+       *
+       * Hey, D-Trust please hand over the specs so that you can
+       * actually sell your cards and we can properly implement it;
+       * other vendors understand this and do not demand ridiculous
+       * paper work or complicated procedures to get samples.  */
+      err = iso7816_manage_security_env (app_get_slot (app),
+                                         0xF3, 0x14, NULL, 0);
+
+    }
+  else if (prkdf->key_reference_valid)
+    {
+      unsigned char mse[6];
+
+      /* Note: This works with CardOS but the D-Trust card has the
+       * problem that the next created signature would be broken.  */
+
+      mse[0] = 0x80; /* Algorithm reference.  */
+      mse[1] = 1;
+      mse[2] = 0x0a; /* RSA, no padding.  */
+      mse[3] = 0x84;
+      mse[4] = 1;
+      mse[5] = prkdf->key_reference;
+      err = iso7816_manage_security_env (app_get_slot (app), 0x41, 0xB8,
+                                         mse, sizeof mse);
+    }
+  /* Check for MSE error.  */
+  if (err)
+    {
+      log_error ("p15: MSE failed: %s\n", gpg_strerror (err));
+      return err;
+    }
+
+  exmode = le_value = 0;
+  padind = 0;
+  if (prkdf->keyalgo == GCRY_PK_RSA && prkdf->keynbits > 2048)
+    {
+      exmode = 1;   /* Extended length w/o a limit.  */
+      le_value = prkdf->keynbits / 8;
+    }
+
+  if (app->app_local->card_product == CARD_PRODUCT_DTRUST)
+    padind = 0x81;
+
+  err = iso7816_decipher (app_get_slot (app), exmode,
+                          indata, indatalen,
+                          le_value, padind,
+                          outdata, outdatalen);
+  return err;
 }
 
 
@@ -3244,7 +4048,7 @@ read_home_df (int slot, int *r_belpic)
   err = iso7816_read_binary (slot, 0, 0, &buffer, &buflen);
   if (err)
     {
-      log_error ("error reading EF{DIR}: %s\n", gpg_strerror (err));
+      log_error ("p15: error reading EF(DIR): %s\n", gpg_strerror (err));
       return 0;
     }
 
@@ -3258,14 +4062,15 @@ read_home_df (int slot, int *r_belpic)
                                   && !memcmp (pp, pkcs15be_aid, nn)))))
         {
           pp = find_tlv (p, n, 0x50, &nn);
-          if (pp) /* fixme: Filter log value? */
-            log_info ("pkcs#15 application label from EF(DIR) is '%.*s'\n",
+          if (pp && opt.verbose)
+            log_info ("p15: application label from EF(DIR) is '%.*s'\n",
                       (int)nn, pp);
           pp = find_tlv (p, n, 0x51, &nn);
           if (pp && nn == 4 && *pp == 0x3f && !pp[1])
             {
               result = ((pp[2] << 8) | pp[3]);
-              log_info ("pkcs#15 application directory is 0x%04hX\n", result);
+              if (opt.verbose)
+                log_info ("p15: application directory is 0x%04hX\n", result);
             }
         }
     }
@@ -3294,11 +4099,11 @@ app_select_p15 (app_t app)
          does only allow for that.  Many other cards supports this
          selection method too.  Note, that we don't use
          select_application above for the Belgian card - the call
-         works but it seems that it did not switch to the correct DF.
+         works but it seems that it does not switch to the correct DF.
          Using the 2f02 just works. */
       unsigned short path[1] = { 0x2f00 };
 
-      rc = iso7816_select_path (app->slot, path, 1);
+      rc = iso7816_select_path (slot, path, 1);
       if (!rc)
         {
           direct = 1;
@@ -3306,7 +4111,7 @@ app_select_p15 (app_t app)
           if (def_home_df)
             {
               path[0] = def_home_df;
-              rc = iso7816_select_path (app->slot, path, 1);
+              rc = iso7816_select_path (slot, path, 1);
             }
         }
     }
@@ -3368,6 +4173,8 @@ app_select_p15 (app_t app)
          the common APP structure. */
       app->app_local->card_type = card_type;
 
+      app->app_local->card_product = CARD_PRODUCT_UNKNOWN;
+
       /* Store whether we may and should use direct path selection. */
       app->app_local->direct_path_selection = direct;
 
@@ -3411,7 +4218,7 @@ app_select_p15 (app_t app)
       app->fnc.genkey = NULL;
       app->fnc.sign = do_sign;
       app->fnc.auth = do_auth;
-      app->fnc.decipher = NULL;
+      app->fnc.decipher = do_decipher;
       app->fnc.change_pin = NULL;
       app->fnc.check_pin = NULL;
 

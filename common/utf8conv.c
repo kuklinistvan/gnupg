@@ -138,7 +138,7 @@ handle_iconv_error (const char *to, const char *from, int use_fallback)
          native encoding.  Nowadays this seems to be the best bet in
          case of errors from iconv or nl_langinfo.  */
       active_charset_name = "utf-8";
-      no_translation = 0;
+      no_translation = 1;
       use_iconv = 0;
     }
 }
@@ -792,6 +792,25 @@ cp_to_wchar (const char *string, unsigned int codepage)
 }
 
 
+/* Get the current codepage as used by wchar_to_native and
+ * native_to_char.  Note that these functions intentionally do not use
+ * iconv based conversion machinery.  */
+static unsigned int
+get_w32_codepage (void)
+{
+  static unsigned int cp;
+
+  if (!cp)
+    {
+#ifndef HAVE_W32CE_SYSTEM
+      cp = GetConsoleOutputCP ();
+      if (!cp)
+#endif
+        cp = GetACP ();
+    }
+  return cp;
+}
+
 /* Return a malloced string encoded in the active code page from the
  * wide char input string STRING.  Caller must free this value.
  * Returns NULL and sets ERRNO on failure.  Calling this function with
@@ -799,18 +818,18 @@ cp_to_wchar (const char *string, unsigned int codepage)
 char *
 wchar_to_native (const wchar_t *string)
 {
-  return wchar_to_cp (string, CP_ACP);
+  return wchar_to_cp (string, get_w32_codepage ());
 }
 
 
-/* Return a malloced wide char string from an UTF-8 encoded input
+/* Return a malloced wide char string from native encoded input
  * string STRING.  Caller must free this value.  Returns NULL and sets
  * ERRNO on failure.  Calling this function with STRING set to NULL is
  * not defined.  */
 wchar_t *
 native_to_wchar (const char *string)
 {
-  return cp_to_wchar (string, CP_ACP);
+  return cp_to_wchar (string, get_w32_codepage ());
 }
 
 

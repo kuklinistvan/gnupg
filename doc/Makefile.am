@@ -22,7 +22,8 @@ AM_CPPFLAGS =
 include $(top_srcdir)/am/cmacros.am
 
 examples = examples/README examples/scd-event examples/trustlist.txt	\
-	   examples/vsnfd.prf examples/debug.prf                        \
+	   examples/VS-NfD.prf examples/Automatic.prf                   \
+           examples/debug.prf                                           \
 	   examples/systemd-user/README 				\
 	   examples/systemd-user/dirmngr.service 			\
 	   examples/systemd-user/dirmngr.socket				\
@@ -182,6 +183,8 @@ defsincdate: $(gnupg_TEXINFOS)
 	if test -e $(top_srcdir)/.git; then \
 	  (cd $(srcdir) && git log -1 --format='%ct' \
                -- $(gnupg_TEXINFOS) 2>/dev/null) >>defsincdate; \
+        elif test x"$$SOURCE_DATE_EPOCH" != x; then   \
+	   echo "$$SOURCE_DATE_EPOCH" >>defsincdate ; \
 	fi
 
 defs.inc : defsincdate Makefile mkdefsinc

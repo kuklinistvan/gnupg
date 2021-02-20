@@ -1202,6 +1202,13 @@ get_pubkey_byname (ctrl_t ctrl, enum get_pubkey_modes mode,
 	      glo_ctrl.in_auto_key_retrieve--;
 	      break;
 
+	    case AKL_NTDS:
+	      mechanism_string = "NTDS";
+	      glo_ctrl.in_auto_key_retrieve++;
+	      rc = keyserver_import_ntds (ctrl, name, &fpr, &fpr_len);
+	      glo_ctrl.in_auto_key_retrieve--;
+	      break;
+
 	    case AKL_KEYSERVER:
 	      /* Strictly speaking, we don't need to only use a valid
 	       * mailbox for the getname search, but it helps cut down
@@ -2414,8 +2421,8 @@ fixup_uidnode (KBNODE uidnode, KBNODE signode, u32 keycreated)
 {
   PKT_user_id *uid = uidnode->pkt->pkt.user_id;
   PKT_signature *sig = signode->pkt->pkt.signature;
-  const byte *p, *sym, *hash, *zip;
-  size_t n, nsym, nhash, nzip;
+  const byte *p, *sym, *aead, *hash, *zip;
+  size_t n, nsym, naead, nhash, nzip;
 
   sig->flags.chosen_selfsig = 1;/* We chose this one. */
   uid->created = 0;		/* Not created == invalid. */
@@ -2470,6 +2477,9 @@ fixup_uidnode (KBNODE uidnode, KBNODE signode, u32 keycreated)
   p = parse_sig_subpkt (sig->hashed, SIGSUBPKT_PREF_SYM, &n);
   sym = p;
   nsym = p ? n : 0;
+  p = parse_sig_subpkt (sig->hashed, SIGSUBPKT_PREF_AEAD, &n);
+  aead = p;
+  naead = p ? n : 0;
   p = parse_sig_subpkt (sig->hashed, SIGSUBPKT_PREF_HASH, &n);
   hash = p;
   nhash = p ? n : 0;
@@ -2478,7 +2488,7 @@ fixup_uidnode (KBNODE uidnode, KBNODE signode, u32 keycreated)
   nzip = p ? n : 0;
   if (uid->prefs)
     xfree (uid->prefs);
-  n = nsym + nhash + nzip;
+  n = nsym + naead + nhash + nzip;
   if (!n)
     uid->prefs = NULL;
   else
@@ -2489,6 +2499,11 @@ fixup_uidnode (KBNODE uidnode, KBNODE signode, u32 keycreated)
 	{
 	  uid->prefs[n].type = PREFTYPE_SYM;
 	  uid->prefs[n].value = *sym++;
+	}
+      for (; naead; naead--, n++)
+	{
+	  uid->prefs[n].type = PREFTYPE_AEAD;
+	  uid->prefs[n].value = *aead++;
 	}
       for (; nhash; nhash--, n++)
 	{
@@ -2509,6 +2524,12 @@ fixup_uidnode (KBNODE uidnode, KBNODE signode, u32 keycreated)
   p = parse_sig_subpkt (sig->hashed, SIGSUBPKT_FEATURES, &n);
   if (p && n && (p[0] & 0x01))
     uid->flags.mdc = 1;
+
+  /* See whether we have the AEAD feature.  */
+  uid->flags.aead = 0;
+  p = parse_sig_subpkt (sig->hashed, SIGSUBPKT_FEATURES, &n);
+  if (p && n && (p[0] & 0x02))
+    uid->flags.aead = 1;
 
   /* And the keyserver modify flag.  */
   uid->flags.ks_modify = 1;
@@ -3332,6 +3353,7 @@ merge_selfsigs (ctrl_t ctrl, kbnode_t keyblock)
   PKT_public_key *main_pk;
   prefitem_t *prefs;
   unsigned int mdc_feature;
+  unsigned int aead_feature;
 
   if (keyblock->pkt->pkttype != PKT_PUBLIC_KEY)
     {
@@ -3393,7 +3415,7 @@ merge_selfsigs (ctrl_t ctrl, kbnode_t keyblock)
    * all preferences.
    * Do a similar thing for the MDC feature flag.  */
   prefs = NULL;
-  mdc_feature = 0;
+  mdc_feature = aead_feature = 0;
   for (k = keyblock; k && k->pkt->pkttype != PKT_PUBLIC_SUBKEY; k = k->next)
     {
       if (k->pkt->pkttype == PKT_USER_ID
@@ -3402,6 +3424,7 @@ merge_selfsigs (ctrl_t ctrl, kbnode_t keyblock)
 	{
 	  prefs = k->pkt->pkt.user_id->prefs;
 	  mdc_feature = k->pkt->pkt.user_id->flags.mdc;
+	  aead_feature = k->pkt->pkt.user_id->flags.aead;
 	  break;
 	}
     }
@@ -3415,6 +3438,7 @@ merge_selfsigs (ctrl_t ctrl, kbnode_t keyblock)
 	    xfree (pk->prefs);
 	  pk->prefs = copy_prefs (prefs);
 	  pk->flags.mdc = mdc_feature;
+	  pk->flags.aead = aead_feature;
 	}
     }
 }
@@ -4177,6 +4201,8 @@ parse_auto_key_locate (const char *options_arg)
 	akl->type = AKL_DANE;
       else if (ascii_strcasecmp (tok, "wkd") == 0)
 	akl->type = AKL_WKD;
+      else if (ascii_strcasecmp (tok, "ntds") == 0)
+	akl->type = AKL_NTDS;
       else if ((akl->spec = parse_keyserver_uri (tok, 1)))
 	akl->type = AKL_SPEC;
       else

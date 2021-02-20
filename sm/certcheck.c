@@ -1,5 +1,7 @@
 /* certcheck.c - check one certificate
- *	Copyright (C) 2001, 2003, 2004 Free Software Foundation, Inc.
+ * Copyright (C) 2001, 2003, 2004 Free Software Foundation, Inc.
+ * Copyright (C) 2001-2019 Werner Koch
+ * Copyright (C) 2015-2020 g10 Code GmbH
  *
  * This file is part of GnuPG.
  *
@@ -15,6 +17,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #include <config.h>
@@ -220,6 +223,126 @@ pk_algo_from_sexp (gcry_sexp_t pkey)
 }
 
 
+/* Return the hash algorithm's algo id from its name given in the
+ * non-null termnated string in (buffer,buflen).  Returns 0 on failure
+ * or if the algo is not known.  */
+static int
+hash_algo_from_buffer (const void *buffer, size_t buflen)
+{
+  char *string;
+  int algo;
+
+  string = xtrymalloc (buflen + 1);
+  if (!string)
+    {
+      log_error (_("out of core\n"));
+      return 0;
+    }
+  memcpy (string, buffer, buflen);
+  string[buflen] = 0;
+  algo = gcry_md_map_name (string);
+  if (!algo)
+    log_error ("unknown digest algorithm '%s' used in certificate\n", string);
+  xfree (string);
+  return algo;
+}
+
+
+/* Return an unsigned integer from the non-null termnated string
+ * (buffer,buflen).  Returns 0 on failure.  */
+static unsigned int
+uint_from_buffer (const void *buffer, size_t buflen)
+{
+  char *string;
+  unsigned int val;
+
+  string = xtrymalloc (buflen + 1);
+  if (!string)
+    {
+      log_error (_("out of core\n"));
+      return 0;
+    }
+  memcpy (string, buffer, buflen);
+  string[buflen] = 0;
+  val = strtoul (string, NULL, 10);
+  xfree (string);
+  return val;
+}
+
+
+/* Extract the hash algorithm and the salt length from the sigval.  */
+static gpg_error_t
+extract_pss_params (gcry_sexp_t s_sig, int *r_algo, unsigned int *r_saltlen)
+{
+  gpg_error_t err;
+  gcry_buffer_t ioarray[2] = { {0}, {0} };
+
+  err = gcry_sexp_extract_param (s_sig, "sig-val",
+                                 "&'hash-algo''salt-length'",
+                                 ioarray+0, ioarray+1, NULL);
+  if (err)
+    {
+      log_error ("extracting params from PSS failed: %s\n", gpg_strerror (err));
+      return err;
+    }
+
+  *r_algo = hash_algo_from_buffer (ioarray[0].data, ioarray[0].len);
+  *r_saltlen = uint_from_buffer (ioarray[1].data, ioarray[1].len);
+  xfree (ioarray[0].data);
+  xfree (ioarray[1].data);
+  if (*r_saltlen < 20)
+    {
+      log_error ("length of PSS salt too short\n");
+      gcry_sexp_release (s_sig);
+      return gpg_error (GPG_ERR_DIGEST_ALGO);
+    }
+  if (!*r_algo)
+    {
+      return gpg_error (GPG_ERR_DIGEST_ALGO);
+    }
+
+  /* PSS has no hash function firewall like PKCS#1 and thus offers
+   * a path for hash algorithm replacement.  To avoid this it makes
+   * sense to restrict the allowed hash algorithms and also allow only
+   * matching salt lengths.  According to Peter Gutmann:
+   *  "Beware of bugs in the above signature scheme;
+   *   I have only proved it secure, not implemented it"
+   *   - Apologies to Donald Knuth.
+   * https://www.metzdowd.com/pipermail/cryptography/2019-November/035449.html
+   *
+   * Given the set of supported algorithms currently available in
+   * Libgcrypt and the extra hash checks we have in some compliance
+   * modes, it would be hard to trick gpgsm to verify a forged
+   * signature.  However, if eventually someone adds the xor256 hash
+   * algorithm (1.3.6.1.4.1.3029.3.2) to Libgcrypt we would be doomed.
+   */
+  switch (*r_algo)
+    {
+    case GCRY_MD_SHA1:
+    case GCRY_MD_SHA256:
+    case GCRY_MD_SHA384:
+    case GCRY_MD_SHA512:
+    case GCRY_MD_SHA3_256:
+    case GCRY_MD_SHA3_384:
+    case GCRY_MD_SHA3_512:
+      break;
+    default:
+      log_error ("PSS hash algorithm '%s' rejected\n",
+                 gcry_md_algo_name (*r_algo));
+      return gpg_error (GPG_ERR_DIGEST_ALGO);
+    }
+
+  if (gcry_md_get_algo_dlen (*r_algo) != *r_saltlen)
+    {
+      log_error ("PSS hash algorithm '%s' rejected due to salt length %u\n",
+                 gcry_md_algo_name (*r_algo), *r_saltlen);
+      return gpg_error (GPG_ERR_DIGEST_ALGO);
+    }
+
+  return 0;
+}
+
+
 /* Check the signature on CERT using the ISSUER-CERT.  This function
    does only test the cryptographic signature and nothing else.  It is
    assumed that the ISSUER_CERT is valid. */
@@ -229,21 +352,57 @@ gpgsm_check_cert_sig (ksba_cert_t issuer_cert, ksba_cert_t cert)
   const char *algoid;
   gcry_md_hd_t md;
   int rc, algo;
-  gcry_mpi_t frame;
   ksba_sexp_t p;
   size_t n;
-  gcry_sexp_t s_sig, s_hash, s_pkey;
+  gcry_sexp_t s_sig, s_data, s_pkey;
+  int use_pss = 0;
+  unsigned int saltlen;
 
   algo = gcry_md_map_name ( (algoid=ksba_cert_get_digest_algo (cert)));
-  if (!algo)
+  if (!algo && algoid && !strcmp (algoid, "1.2.840.113549.1.1.10"))
+    use_pss = 1;
+  else if (!algo)
     {
-      log_error ("unknown hash algorithm '%s'\n", algoid? algoid:"?");
+      log_error ("unknown digest algorithm '%s' used certificate\n",
+                 algoid? algoid:"?");
       if (algoid
           && (  !strcmp (algoid, "1.2.840.113549.1.1.2")
                 ||!strcmp (algoid, "1.2.840.113549.2.2")))
         log_info (_("(this is the MD2 algorithm)\n"));
       return gpg_error (GPG_ERR_GENERAL);
     }
+
+  /* The the signature from the certificate.  */
+  p = ksba_cert_get_sig_val (cert);
+  n = gcry_sexp_canon_len (p, 0, NULL, NULL);
+  if (!n)
+    {
+      log_error ("libksba did not return a proper S-Exp\n");
+      ksba_free (p);
+      return gpg_error (GPG_ERR_BUG);
+    }
+  rc = gcry_sexp_sscan ( &s_sig, NULL, (char*)p, n);
+  ksba_free (p);
+  if (rc)
+    {
+      log_error ("gcry_sexp_scan failed: %s\n", gpg_strerror (rc));
+      return rc;
+    }
+  if (DBG_CRYPTO)
+    gcry_log_debugsxp ("sigval", s_sig);
+
+  if (use_pss)
+    {
+      rc = extract_pss_params (s_sig, &algo, &saltlen);
+      if (rc)
+        {
+          gcry_sexp_release (s_sig);
+          return rc;
+        }
+    }
+
+
+  /* Hash the to-be-signed parts of the certificate.  */
   rc = gcry_md_open (&md, algo, 0);
   if (rc)
     {
@@ -262,33 +421,7 @@ gpgsm_check_cert_sig (ksba_cert_t issuer_cert, ksba_cert_t cert)
     }
   gcry_md_final (md);
 
-  p = ksba_cert_get_sig_val (cert);
-  n = gcry_sexp_canon_len (p, 0, NULL, NULL);
-  if (!n)
-    {
-      log_error ("libksba did not return a proper S-Exp\n");
-      gcry_md_close (md);
-      ksba_free (p);
-      return gpg_error (GPG_ERR_BUG);
-    }
-  if (DBG_CRYPTO)
-    {
-      int j;
-      log_debug ("signature value:");
-      for (j=0; j < n; j++)
-        log_printf (" %02X", p[j]);
-      log_printf ("\n");
-    }
-
-  rc = gcry_sexp_sscan ( &s_sig, NULL, (char*)p, n);
-  ksba_free (p);
-  if (rc)
-    {
-      log_error ("gcry_sexp_scan failed: %s\n", gpg_strerror (rc));
-      gcry_md_close (md);
-      return rc;
-    }
-
+  /* Get the public key from the certificate.  */
   p = ksba_cert_get_public_key (issuer_cert);
   n = gcry_sexp_canon_len (p, 0, NULL, NULL);
   if (!n)
@@ -308,29 +441,50 @@ gpgsm_check_cert_sig (ksba_cert_t issuer_cert, ksba_cert_t cert)
       gcry_sexp_release (s_sig);
       return rc;
     }
+  if (DBG_CRYPTO)
+    gcry_log_debugsxp ("pubkey:", s_pkey);
 
-  rc = do_encode_md (md, algo, pk_algo_from_sexp (s_pkey),
-                     gcry_pk_get_nbits (s_pkey), s_pkey, &frame);
-  if (rc)
+  if (use_pss)
     {
-      gcry_md_close (md);
-      gcry_sexp_release (s_sig);
-      gcry_sexp_release (s_pkey);
-      return rc;
+      rc = gcry_sexp_build (&s_data, NULL,
+                            "(data (flags pss)"
+                            "(hash %s %b)"
+                            "(salt-length %u))",
+                            hash_algo_to_string (algo),
+                            (int)gcry_md_get_algo_dlen (algo),
+                            gcry_md_read (md, algo),
+                            saltlen);
+      if (rc)
+        BUG ();
     }
+  else
+    {
+      /* RSA or DSA: Prepare the hash for verification.  */
+      gcry_mpi_t frame;
 
-  /* put hash into the S-Exp s_hash */
-  if ( gcry_sexp_build (&s_hash, NULL, "%m", frame) )
-    BUG ();
-  gcry_mpi_release (frame);
+      rc = do_encode_md (md, algo, pk_algo_from_sexp (s_pkey),
+                         gcry_pk_get_nbits (s_pkey), s_pkey, &frame);
+      if (rc)
+        {
+          gcry_md_close (md);
+          gcry_sexp_release (s_sig);
+          gcry_sexp_release (s_pkey);
+          return rc;
+        }
+      if ( gcry_sexp_build (&s_data, NULL, "%m", frame) )
+        BUG ();
+      gcry_mpi_release (frame);
+    }
+  if (DBG_CRYPTO)
+    gcry_log_debugsxp ("data:", s_data);
 
-
-  rc = gcry_pk_verify (s_sig, s_hash, s_pkey);
+  /* Verify.  */
+  rc = gcry_pk_verify (s_sig, s_data, s_pkey);
   if (DBG_X509)
       log_debug ("gcry_pk_verify: %s\n", gpg_strerror (rc));
   gcry_md_close (md);
   gcry_sexp_release (s_sig);
-  gcry_sexp_release (s_hash);
+  gcry_sexp_release (s_data);
   gcry_sexp_release (s_pkey);
   return rc;
 }
@@ -338,30 +492,41 @@ gpgsm_check_cert_sig (ksba_cert_t issuer_cert, ksba_cert_t cert)
 
 
 int
-gpgsm_check_cms_signature (ksba_cert_t cert, ksba_const_sexp_t sigval,
-                           gcry_md_hd_t md, int mdalgo, int *r_pkalgo)
+gpgsm_check_cms_signature (ksba_cert_t cert, gcry_sexp_t s_sig,
+                           gcry_md_hd_t md, int mdalgo,
+                           unsigned int pkalgoflags, int *r_pkalgo)
 {
   int rc;
   ksba_sexp_t p;
-  gcry_mpi_t frame;
-  gcry_sexp_t s_sig, s_hash, s_pkey;
+  gcry_sexp_t s_hash, s_pkey;
   size_t n;
   int pkalgo;
+  int use_pss;
+  unsigned int saltlen = 0;
 
   if (r_pkalgo)
     *r_pkalgo = 0;
 
-  n = gcry_sexp_canon_len (sigval, 0, NULL, NULL);
-  if (!n)
+  /* Check whether rsaPSS is needed.  This information is indicated in
+   * the SIG-VAL and already provided to us by the caller so that we
+   * do not need to parse this out. */
+  use_pss = !!(pkalgoflags & PK_ALGO_FLAG_RSAPSS);
+  if (use_pss)
     {
-      log_error ("libksba did not return a proper S-Exp\n");
-      return gpg_error (GPG_ERR_BUG);
-    }
-  rc = gcry_sexp_sscan (&s_sig, NULL, (char*)sigval, n);
-  if (rc)
-    {
-      log_error ("gcry_sexp_scan failed: %s\n", gpg_strerror (rc));
-      return rc;
+      int algo;
+
+      rc = extract_pss_params (s_sig, &algo, &saltlen);
+      if (rc)
+        {
+          gcry_sexp_release (s_sig);
+          return rc;
+        }
+      if (algo != mdalgo)
+        {
+          log_error ("PSS hash algo mismatch (%d/%d)\n", mdalgo, algo);
+          gcry_sexp_release (s_sig);
+          return gpg_error (GPG_ERR_DIGEST_ALGO);
+        }
     }
 
   p = ksba_cert_get_public_key (cert);
@@ -370,41 +535,57 @@ gpgsm_check_cms_signature (ksba_cert_t cert, ksba_const_sexp_t sigval,
     {
       log_error ("libksba did not return a proper S-Exp\n");
       ksba_free (p);
-      gcry_sexp_release (s_sig);
       return gpg_error (GPG_ERR_BUG);
     }
   if (DBG_CRYPTO)
-    log_printhex ("public key: ", p, n);
+    log_printhex (p, n, "public key: ");
 
   rc = gcry_sexp_sscan ( &s_pkey, NULL, (char*)p, n);
   ksba_free (p);
   if (rc)
     {
       log_error ("gcry_sexp_scan failed: %s\n", gpg_strerror (rc));
-      gcry_sexp_release (s_sig);
       return rc;
     }
 
   pkalgo = pk_algo_from_sexp (s_pkey);
   if (r_pkalgo)
     *r_pkalgo = pkalgo;
-  rc = do_encode_md (md, mdalgo, pkalgo,
-                     gcry_pk_get_nbits (s_pkey), s_pkey, &frame);
-  if (rc)
+
+  if (use_pss)
     {
-      gcry_sexp_release (s_sig);
-      gcry_sexp_release (s_pkey);
-      return rc;
+      rc = gcry_sexp_build (&s_hash, NULL,
+                            "(data (flags pss)"
+                            "(hash %s %b)"
+                            "(salt-length %u))",
+                            hash_algo_to_string (mdalgo),
+                            (int)gcry_md_get_algo_dlen (mdalgo),
+                            gcry_md_read (md, mdalgo),
+                            saltlen);
+      if (rc)
+        BUG ();
     }
-  /* put hash into the S-Exp s_hash */
-  if ( gcry_sexp_build (&s_hash, NULL, "%m", frame) )
-    BUG ();
-  gcry_mpi_release (frame);
+  else
+    {
+      /* RSA or DSA: Prepare the hash for verification.  */
+      gcry_mpi_t frame;
+
+      rc = do_encode_md (md, mdalgo, pkalgo,
+                         gcry_pk_get_nbits (s_pkey), s_pkey, &frame);
+      if (rc)
+        {
+          gcry_sexp_release (s_pkey);
+          return rc;
+        }
+      /* put hash into the S-Exp s_hash */
+      if ( gcry_sexp_build (&s_hash, NULL, "%m", frame) )
+        BUG ();
+      gcry_mpi_release (frame);
+    }
 
   rc = gcry_pk_verify (s_sig, s_hash, s_pkey);
   if (DBG_X509)
-      log_debug ("gcry_pk_verify: %s\n", gpg_strerror (rc));
-  gcry_sexp_release (s_sig);
+    log_debug ("gcry_pk_verify: %s\n", gpg_strerror (rc));
   gcry_sexp_release (s_hash);
   gcry_sexp_release (s_pkey);
   return rc;

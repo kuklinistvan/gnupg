@@ -33,7 +33,7 @@
 
 static int
 store_key (gcry_sexp_t private, const char *passphrase, int force,
-	unsigned long s2k_count)
+           unsigned long s2k_count, time_t timestamp)
 {
   int rc;
   unsigned char *buf;
@@ -68,7 +68,7 @@ store_key (gcry_sexp_t private, const char *passphrase, int force,
       buf = p;
     }
 
-  rc = agent_write_private_key (grip, buf, len, force);
+  rc = agent_write_private_key (grip, buf, len, force, timestamp);
   xfree (buf);
   return rc;
 }
@@ -179,7 +179,7 @@ take_this_one_anyway (ctrl_t ctrl, const char *desc)
    message describing the problem is returned in
    *FAILED_CONSTRAINT.  */
 int
-check_passphrase_constraints (ctrl_t ctrl, const char *pw,
+check_passphrase_constraints (ctrl_t ctrl, const char *pw, int no_empty,
 			      char **failed_constraint)
 {
   gpg_error_t err = 0;
@@ -198,7 +198,7 @@ check_passphrase_constraints (ctrl_t ctrl, const char *pw,
   /* The first check is to warn about an empty passphrase. */
   if (!*pw)
     {
-      const char *desc = (opt.enforce_passphrase_constraints?
+      const char *desc = (opt.enforce_passphrase_constraints || no_empty?
                           L_("You have not entered a passphrase!%0A"
                              "An empty passphrase is not allowed.") :
                           L_("You have not entered a passphrase - "
@@ -209,7 +209,7 @@ check_passphrase_constraints (ctrl_t ctrl, const char *pw,
       err = 1;
       if (failed_constraint)
 	{
-	  if (opt.enforce_passphrase_constraints)
+	  if (opt.enforce_passphrase_constraints || no_empty)
 	    *failed_constraint = xstrdup (desc);
 	  else
 	    err = take_this_one_anyway2 (ctrl, desc,
@@ -386,7 +386,7 @@ agent_ask_new_passphrase (ctrl_t ctrl, const char *prompt,
     }
   pi->max_length = MAX_PASSPHRASE_LEN + 1;
   pi->max_tries = 3;
-  pi->with_qualitybar = 1;
+  pi->with_qualitybar = 0;
   pi->with_repeat = 1;
   pi2->max_length = MAX_PASSPHRASE_LEN + 1;
   pi2->max_tries = 3;
@@ -399,7 +399,7 @@ agent_ask_new_passphrase (ctrl_t ctrl, const char *prompt,
   initial_errtext = NULL;
   if (!err)
     {
-      if (check_passphrase_constraints (ctrl, pi->pin, &initial_errtext))
+      if (check_passphrase_constraints (ctrl, pi->pin, 0, &initial_errtext))
         {
           pi->failed_tries = 0;
           pi2->failed_tries = 0;
@@ -441,9 +441,11 @@ agent_ask_new_passphrase (ctrl_t ctrl, const char *prompt,
    KEYPARAM.  If CACHE_NONCE is given first try to lookup a passphrase
    using the cache nonce.  If NO_PROTECTION is true the key will not
    be protected by a passphrase.  If OVERRIDE_PASSPHRASE is true that
-   passphrase will be used for the new key.  */
+   passphrase will be used for the new key.  If TIMESTAMP is not zero
+   it will be recorded as creation date of the key (unless extended
+   format is disabled) . */
 int
-agent_genkey (ctrl_t ctrl, const char *cache_nonce,
+agent_genkey (ctrl_t ctrl, const char *cache_nonce, time_t timestamp,
               const char *keyparam, size_t keyparamlen, int no_protection,
               const char *override_passphrase, int preset, membuf_t *outbuf)
 {
@@ -517,7 +519,7 @@ agent_genkey (ctrl_t ctrl, const char *cache_nonce,
   /* store the secret key */
   if (DBG_CRYPTO)
     log_debug ("storing private key\n");
-  rc = store_key (s_private, passphrase, 0, ctrl->s2k_count);
+  rc = store_key (s_private, passphrase, 0, ctrl->s2k_count, timestamp);
   if (!rc)
     {
       if (!cache_nonce)
@@ -591,7 +593,7 @@ agent_protect_and_store (ctrl_t ctrl, gcry_sexp_t s_skey,
     {
       /* Take an empty string as request not to protect the key.  */
       err = store_key (s_skey, **passphrase_addr? *passphrase_addr:NULL, 1,
-	      ctrl->s2k_count);
+                       ctrl->s2k_count, 0);
     }
   else
     {
@@ -606,7 +608,7 @@ agent_protect_and_store (ctrl_t ctrl, gcry_sexp_t s_skey,
                                       L_("Please enter the new passphrase"),
                                       &pass);
       if (!err)
-        err = store_key (s_skey, pass, 1, ctrl->s2k_count);
+        err = store_key (s_skey, pass, 1, ctrl->s2k_count, 0);
       if (!err && passphrase_addr)
         *passphrase_addr = pass;
       else

@@ -46,11 +46,10 @@
 #include "../common/mbox-util.h"
 
 
-/* The default algorithms.  If you change them remember to change them
-   also in gpg.c:gpgconf_list.  You should also check that the value
+/* The default algorithms. You should also check that the value
    is inside the bounds enforced by ask_keysize and gen_xxx.  See also
    get_keysize_range which encodes the allowed ranges.  */
-#define DEFAULT_STD_KEY_PARAM  "rsa2048/cert,sign+rsa2048/encr"
+#define DEFAULT_STD_KEY_PARAM  "rsa3072/cert,sign+rsa3072/encr"
 #define FUTURE_STD_KEY_PARAM   "ed25519/cert,sign+cv25519/encr"
 
 /* When generating keys using the streamlined key generation dialog,
@@ -1367,7 +1366,7 @@ common_gen (const char *keyparms, int algo, const char *algoelem,
 
   err = agent_genkey (NULL, cache_nonce_addr, passwd_nonce_addr, keyparms,
                       !!(keygen_flags & KEYGEN_FLAG_NO_PROTECTION),
-                      passphrase,
+                      passphrase, timestamp,
                       &s_key);
   if (err)
     {
@@ -1653,7 +1652,7 @@ gen_rsa (int algo, unsigned int nbits, KBNODE pub_root,
 
   if (nbits < 1024)
     {
-      nbits = 2048;
+      nbits = 3072;
       log_info (_("keysize invalid; using %u bits\n"), nbits );
     }
   else if (nbits > maxsize)
@@ -2148,6 +2147,10 @@ ask_algo (ctrl_t ctrl, int addmode, int *r_subkey_algo, unsigned int *r_usage,
                       && !(sl->flags & GCRY_PK_USAGE_ENCR))
                     sl->flags |= (PUBKEY_ALGO_ECDSA << 8);
                   else if (algoid == GCRY_PK_ECC
+                      && algostr && !strncmp (algostr, "brainpool", 9)
+                      && !(sl->flags & GCRY_PK_USAGE_ENCR))
+                    sl->flags |= (PUBKEY_ALGO_ECDSA << 8);
+                  else if (algoid == GCRY_PK_ECC
                            && algostr && !strcmp (algostr, "ed25519")
                            && !(sl->flags & GCRY_PK_USAGE_ENCR))
                     sl->flags = (PUBKEY_ALGO_EDDSA << 8);
@@ -2264,7 +2267,7 @@ get_keysize_range (int algo, unsigned int *min, unsigned int *max)
     default:
       *min = opt.compliance == CO_DE_VS ? 2048: 1024;
       *max = 4096;
-      def = 2048;
+      def = 3072;
       break;
     }
 
@@ -4040,6 +4043,7 @@ read_parameter_file (ctrl_t ctrl, const char *fname )
     para = NULL;
     maxlen = 1024;
     line = NULL;
+    nline = 0;
     while ( iobuf_read_line (fp, &line, &nline, &maxlen) ) {
 	char *keyword, *value;
 
