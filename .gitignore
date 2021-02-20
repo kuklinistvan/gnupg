@@ -213,3 +213,4 @@ scd/test
 scd/a
 
 package
+regexp/libregexp.a

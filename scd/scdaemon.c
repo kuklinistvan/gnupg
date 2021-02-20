@@ -162,11 +162,10 @@ static ARGPARSE_OPTS opts[] = {
                 N_("use variable length input for pinpad")),
   ARGPARSE_s_s (oHomedir,    "homedir",      "@"),
   ARGPARSE_s_i (oListenBacklog, "listen-backlog", "@"),
-<<<<<<< HEAD
+
   ARGPARSE_s_s (oCustomBackend,  "custom-backend", N_("|FILE|use custom smart card backend")),
-=======
   ARGPARSE_noconffile (oNoOptions, "no-options", "@"),
->>>>>>> gnupg-2.2.27
+
 
   /* Stubs for options which are implemented by 2.3 or later.  */
   ARGPARSE_s_s (oNoop, "application-priority", "@"),

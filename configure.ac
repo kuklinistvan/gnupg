@@ -132,7 +132,6 @@ GNUPG_BUILD_PROGRAM(gpgtar, yes)
 # later for platforms where it can't be build.
 GNUPG_BUILD_PROGRAM(wks-tools, yes)
 
-PKG_CHECK_MODULES([KC_COMMON], [kc-common])
 
 AC_SUBST(PACKAGE)
 AC_SUBST(PACKAGE_GT)
@@ -2016,26 +2015,14 @@ if test "$die" = "yes"; then
 ***]])
 fi
 
-if $GPG_COMMON_LIBS; then
-  COMMON_CONFIG_FILES = ""
-  COMMON_SUBDIR = ""
-else
-  COMMON_CONFIG_FILES = "common/Makefile common/w32info-rc.h"
-  COMMON_SUBDIR = "common"
-fi
-
-AC_SUBST(COMMON_SUBDIR)
+AM_CONDITIONAL([GPG_COMMON_LIBS_SPECIFIED], [ -z $GPG_COMMON_LIBS ])
 
 AC_CONFIG_FILES([ m4/Makefile
 Makefile
 po/Makefile.in
-<<<<<<< HEAD
-$COMMON_CONFIG_FILES
-=======
 common/Makefile
 common/w32info-rc.h
 regexp/Makefile
->>>>>>> gnupg-2.2.27
 kbx/Makefile
 g10/Makefile
 sm/Makefile

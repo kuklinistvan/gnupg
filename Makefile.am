@@ -105,11 +105,16 @@ else
 tests = tests
 endif
 
-<<<<<<< HEAD
-SUBDIRS = m4 ${COMMON_SUBDIR} kbx \
-=======
-SUBDIRS = m4 common regexp kbx \
->>>>>>> gnupg-2.2.27
+if GPG_COMMON_LIBS_SPECIFIED
+  COMMON_CONFIG_FILES=
+  COMMON_SUBDIR=
+else
+  COMMON_CONFIG_FILES=common/Makefile common/w32info-rc.h
+  COMMON_SUBDIR=common
+endif
+
+
+SUBDIRS = m4 ${COMMON_SUBDIR} regexp kbx \
           ${gpg} ${sm} ${agent} ${scd} ${g13} ${dirmngr} \
           tools po ${doc} ${tests}
 
